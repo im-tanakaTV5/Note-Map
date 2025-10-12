@@ -9,7 +9,6 @@ body {
     0% { transform: scale(0.8); opacity: 0; }
     100% { transform: scale(1); opacity: 1; }
 }
-
 @keyframes shake {
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-4px); }
@@ -32,11 +31,9 @@ body {
     color: #374151; /* gray-700 */
     border-color: #d1d5db; /* gray-300 */
 }
-
 .option-btn:hover {
     background-color: #e5e7eb; /* gray-200 */
 }
-
 .option-btn.active-mode {
     background-color: #2563eb; /* blue-600 */
     color: white;
@@ -48,25 +45,24 @@ body {
     background-color: #ffffff; /* white */
     color: #374151; /* gray-700 */
     border-color: #d1d5db; /* gray-300 */
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    padding: 0.75rem 0.5rem;
 }
-
 .answer-btn:hover:not(:disabled) {
      background-color: #f9fafb; /* gray-50 */
 }
-
 .answer-btn.correct {
     background-color: #16a34a; /* green-600 */
     color: white;
     border-color: #16a34a;
 }
-
 .answer-btn.incorrect {
     background-color: #dc2626; /* red-600 */
     color: white;
     border-color: #dc2626;
     animation: shake 0.5s ease-in-out;
 }
-
 .answer-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
@@ -80,10 +76,31 @@ body {
     animation: pop 0.3s ease-out;
     pointer-events: none;
 }
-
  .question-marker text {
     font-weight: bold;
     font-size: 20px;
     font-family: sans-serif;
     fill: white;
 }
+
+/* タブナビゲーション */
+.tab {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #6b7280; /* gray-500 */
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s, border-color 0.2s;
+}
+.tab:hover {
+    color: #1f2937; /* gray-800 */
+}
+.tab.tab-active {
+    color: #2563eb; /* blue-600 */
+    border-color: #2563eb;
+}
+
+.hidden {
+    display: none;
+}
+
