@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ギター理論学習アプリ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-100 text-gray-800 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-7xl mx-auto">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">ギター指板マスター</h1>
+            <p class="text-gray-600 mt-1">クイズで効率的に音名を覚えましょう</p>
+        </header>
+
+        <main class="bg-white rounded-lg shadow-lg border border-gray-200 p-6 md:p-8 w-full relative">
+            <!-- ローディング画面 -->
+            <div id="loading-overlay" class="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-50 rounded-lg">
+                <p class="text-lg font-semibold text-gray-700">クリックしてサウンドの読み込みを開始</p>
+            </div>
+
+            <!-- コントロールパネル -->
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 bg-gray-50 p-4 rounded-md border border-gray-200">
+                <div id="question-area" class="text-center md:text-left mb-4 md:mb-0">
+                    <p class="text-lg text-gray-700">この場所の音名は何でしょう？</p>
+                </div>
+                <div class="flex items-center space-x-4">
+                     <div id="score-area" class="text-lg">
+                        <span class="font-semibold text-gray-600">スコア:</span>
+                        <span id="score" class="font-bold text-blue-600 text-xl">0</span>
+                    </div>
+                    <button id="next-question-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
+                        次の問題へ
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 練習モードとフレット表示範囲の選択 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
+                <div class="text-center">
+                    <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">弦の選択</h3>
+                    <div id="string-mode-selector" class="flex justify-center flex-wrap gap-2">
+                        <button data-mode="all" class="btn option-btn active-mode">全弦</button>
+                        <button data-mode="1" class="btn option-btn">1弦</button>
+                        <button data-mode="2" class="btn option-btn">2弦</button>
+                        <button data-mode="3" class="btn option-btn">3弦</button>
+                        <button data-mode="4" class="btn option-btn">4弦</button>
+                        <button data-mode="5" class="btn option-btn">5弦</button>
+                        <button data-mode="6" class="btn option-btn">6弦</button>
+                    </div>
+                </div>
+                 <div class="text-center">
+                    <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">出題オプション</h3>
+                    <div id="options-selector" class="flex justify-center flex-wrap gap-2">
+                        <button data-quiz-range="1-12" class="btn option-btn active-mode">1-12 F</button>
+                        <button data-quiz-range="13-24" class="btn option-btn">13-24 F</button>
+                        <button id="toggle-open-strings-btn" class="btn option-btn">開放弦</button>
+                        <button id="toggle-note-name-btn" class="btn option-btn">ドレミ</button>
+                        <button id="toggle-sound-btn" class="btn option-btn active-mode">サウンドON</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ギター指板エリア -->
+            <div class="w-full overflow-x-auto rounded-lg border border-gray-300 mb-6 bg-white">
+                <div id="fretboard-container" class="relative cursor-pointer">
+                    <!-- ここにSVGで指板が描画されます -->
+                </div>
+            </div>
+
+            <!-- 解答エリア -->
+            <div id="answer-area" class="text-center">
+                <p id="message" class="text-xl h-8 font-semibold transition-opacity duration-300 opacity-100"></p>
+                <div id="answer-buttons" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-4 max-w-4xl mx-auto">
+                    <!-- JSで解答ボタンが生成されます -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // --- 定数と設定 ---
+    const NOTES_ENHARMONIC = ['C', 'C#(Db)', 'D', 'D#(Eb)', 'E', 'F', 'F#(Gb)', 'G', 'G#(Ab)', 'A', 'A#(Bb)', 'B'];
+    const NOTES_SOLFEGE_ENHARMONIC = ['ド', 'ド#(レb)', 'レ', 'レ#(ミb)', 'ミ', 'ファ', 'ファ#(ソb)', 'ソ', 'ソ#(ラb)', 'ラ', 'ラ#(シb)', 'シ'];
+    // 0: 1弦(E), 1: 2弦(B), ..., 5: 6弦(E)
+    const TUNING = [4, 11, 7, 2, 9, 4]; 
+    const FRET_COUNT = 24;
+    const STRING_COUNT = 6;
+    const FRET_WIDTH = 80;
+    const FRET_HEIGHT = 35;
+    const POSITION_MARKERS = [3, 5, 7, 9, 12, 15, 17, 19, 21, 24];
+    const DISPLAY_FRET_COUNT = 12;
+    const FRET_NUM_AREA_HEIGHT = 30;
+
+    // --- 音声関連の定数 ---
+    const BASE_MIDI_NOTES = [64, 59, 55, 50, 45, 40]; // 1弦(E4)から6弦(E2)のMIDIノート番号
+    let audioContext;
+    let soundBuffers = {}; // デコードされたサウンドバッファを保存するオブジェクト
+    let soundsLoaded = false;
+    
+    // --- サンプリング音源の設定 ---
+    // ここにサウンドファイルが置かれているフォルダのパスを指定します。
+    // 例: './sounds/' -> index.htmlと同じ階層にあるsoundsフォルダ
+    const SOUND_FILE_PATH = './sounds/'; 
+    const SOUND_FILE_EXTENSION = '.mp3';
+    const MIN_MIDI_NOTE = 40; // E2 (6弦開放)
+    const MAX_MIDI_NOTE = 88; // E6 (1弦24F)
+
+    // --- DOM要素 ---
+    const fretboardContainer = document.getElementById('fretboard-container');
+    const scoreEl = document.getElementById('score');
+    const nextQuestionBtn = document.getElementById('next-question-btn');
+    const messageEl = document.getElementById('message');
+    const stringModeSelector = document.getElementById('string-mode-selector');
+    const optionsSelector = document.getElementById('options-selector');
+    const answerButtonsContainer = document.getElementById('answer-buttons');
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const loadingText = loadingOverlay.querySelector('p');
+
+    // --- アプリケーションの状態 ---
+    let state = {
+        score: 0,
+        targetString: -1, // 0-5 (0=1弦)
+        targetFret: -1,
+        targetNoteIndex: -1,
+        isQuizActive: true,
+        trainingMode: 'all', // 'all' or 1-6
+        quizFretRange: '1-12', // '1-12' or '13-24'
+        fretViewStart: 0, // 0 or 12
+        showOpenStrings: false,
+        noteNameSystem: 'english', // 'english' or 'solfege'
+        isSoundEnabled: true, // サウンドのON/OFF
+    };
+
+    // --- 音声再生機能 ---
+    async function initAudioAndLoadSounds() {
+        if (audioContext) return;
+        try {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            loadingText.textContent = 'サウンドを読み込んでいます...';
+            await loadSounds();
+            soundsLoaded = true;
+            loadingOverlay.style.display = 'none';
+        } catch(e) {
+            console.error("Audio setup failed:", e);
+            loadingText.textContent = 'サウンドの読み込みに失敗しました。';
+            state.isSoundEnabled = false; // サウンド機能を無効化
+             setTimeout(() => { loadingOverlay.style.display = 'none'; }, 2000);
+        }
+    }
+
+    async function loadSounds() {
+        if (!audioContext) return;
+        const loadingPromises = [];
+        for (let i = MIN_MIDI_NOTE; i <= MAX_MIDI_NOTE; i++) {
+            const url = `${SOUND_FILE_PATH}${i}${SOUND_FILE_EXTENSION}`;
+            const promise = fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error(`サウンドファイルが見つかりません: ${url}`);
+                    return response.arrayBuffer();
+                })
+                .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+                .then(audioBuffer => { soundBuffers[i] = audioBuffer; })
+                .catch(error => { console.warn(error.message); });
+            loadingPromises.push(promise);
+        }
+        await Promise.all(loadingPromises);
+    }
+
+    function playTone(midiNote) {
+        if (!state.isSoundEnabled || !audioContext) return;
+
+        // サンプリング音源が読み込まれていればそちらを優先
+        if (soundsLoaded && soundBuffers[midiNote]) {
+            const source = audioContext.createBufferSource();
+            source.buffer = soundBuffers[midiNote];
+            source.connect(audioContext.destination);
+            source.start(0);
+        } else {
+            // フォールバックとしてオシレーターを鳴らす
+            const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.7);
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.8);
+        }
+    }
+
+    // --- 指板の描画 ---
+    function drawFretboard() {
+        // ... (描画ロジックは変更なし) ...
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        const fretboardHeight = STRING_COUNT * FRET_HEIGHT;
+        const totalWidth = (DISPLAY_FRET_COUNT + 1) * FRET_WIDTH;
+        const totalHeight = fretboardHeight + FRET_NUM_AREA_HEIGHT;
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
+        svg.style.backgroundColor = '#E3C6A4';
+        for (let i = 0; i <= DISPLAY_FRET_COUNT; i++) {
+            const currentFret = state.fretViewStart + i;
+            const x = (i + 0.5) * FRET_WIDTH;
+            if (currentFret === 0) {
+                const nut = document.createElementNS(svgNS, 'rect');
+                nut.setAttribute('x', x - 4); nut.setAttribute('y', 0);
+                nut.setAttribute('width', 8); nut.setAttribute('height', fretboardHeight);
+                nut.setAttribute('fill', '#d1d5db');
+                svg.appendChild(nut);
+            } else {
+                const fretLine = document.createElementNS(svgNS, 'line');
+                fretLine.setAttribute('x1', x); fretLine.setAttribute('y1', 0);
+                fretLine.setAttribute('x2', x); fretLine.setAttribute('y2', fretboardHeight);
+                fretLine.setAttribute('stroke', '#9ca3af');
+                fretLine.setAttribute('stroke-width', currentFret === 12 ? '5' : '3');
+                svg.appendChild(fretLine);
+            }
+            if (POSITION_MARKERS.includes(currentFret) && currentFret !== 0) {
+                const marker = document.createElementNS(svgNS, 'circle');
+                const markerX = x - FRET_WIDTH / 2; let markerY = fretboardHeight / 2;
+                marker.setAttribute('cx', markerX); marker.setAttribute('cy', markerY);
+                marker.setAttribute('r', '6'); marker.setAttribute('fill', '#000000');
+                marker.setAttribute('fill-opacity', '0.2');
+                if (currentFret === 12 || currentFret === 24) {
+                    const marker2 = marker.cloneNode();
+                    marker.setAttribute('cy', markerY - FRET_HEIGHT);
+                    marker2.setAttribute('cy', markerY + FRET_HEIGHT);
+                    svg.appendChild(marker2);
+                }
+                svg.appendChild(marker);
+            }
+        }
+        for (let i = 0; i < STRING_COUNT; i++) {
+            const y = (i + 0.5) * FRET_HEIGHT;
+            const stringLine = document.createElementNS(svgNS, 'line');
+            const stringIndex = i;
+            const isStringActive = state.trainingMode === 'all' || (state.trainingMode - 1) === stringIndex;
+            stringLine.setAttribute('x1', FRET_WIDTH/2); stringLine.setAttribute('y1', y);
+            stringLine.setAttribute('x2', totalWidth - FRET_WIDTH/2); stringLine.setAttribute('y2', y);
+            stringLine.setAttribute('stroke', isStringActive ? '#6b7280' : '#d1d5db');
+            stringLine.setAttribute('stroke-width', 1.5 + stringIndex * 0.4);
+            svg.appendChild(stringLine);
+        }
+        const fretNumGroup = document.createElementNS(svgNS, 'g');
+        fretNumGroup.setAttribute('transform', `translate(0, ${fretboardHeight})`);
+        for (let i = 1; i <= DISPLAY_FRET_COUNT; i++) {
+            const currentFret = state.fretViewStart + i;
+            if(currentFret === 0) continue;
+            const x = i * FRET_WIDTH; const y = (FRET_NUM_AREA_HEIGHT / 2) + 5;
+            const text = document.createElementNS(svgNS, 'text');
+            text.setAttribute('x', x); text.setAttribute('y', y);
+            text.setAttribute('fill', '#6b7280'); text.setAttribute('font-size', '14');
+            text.setAttribute('font-weight', '600'); text.setAttribute('text-anchor', 'middle');
+            text.textContent = currentFret;
+            fretNumGroup.appendChild(text);
+        }
+        svg.appendChild(fretNumGroup);
+        if (state.showOpenStrings && state.fretViewStart === 0) {
+            const noteArray = state.noteNameSystem === 'solfege' ? NOTES_SOLFEGE_ENHARMONIC : NOTES_ENHARMONIC;
+            for (let i = 0; i < STRING_COUNT; i++) {
+                const stringIndex = i;
+                if (state.targetFret === 0 && state.targetString === stringIndex) { continue; }
+                const noteName = noteArray[TUNING[stringIndex]];
+                const y = (i + 0.5) * FRET_HEIGHT + 6;
+                const x = 0.25 * FRET_WIDTH;
+                const text = document.createElementNS(svgNS, 'text');
+                text.setAttribute('x', x); text.setAttribute('y', y);
+                text.setAttribute('fill', '#4b5563'); text.setAttribute('font-size', '16');
+                text.setAttribute('font-weight', 'bold'); text.setAttribute('text-anchor', 'middle');
+                text.textContent = noteName;
+                svg.appendChild(text);
+            }
+        }
+        if (state.targetFret >= state.fretViewStart && state.targetFret <= state.fretViewStart + DISPLAY_FRET_COUNT) {
+            const marker = createQuestionMarker();
+            svg.appendChild(marker);
+        }
+        fretboardContainer.innerHTML = '';
+        fretboardContainer.appendChild(svg);
+    }
+    
+    // --- クイズロジック ---
+    function getNoteIndex(string, fret) {
+        return (TUNING[string] + fret) % 12;
+    }
+    
+    function generateQuestion() {
+        state.isQuizActive = true;
+        if (state.trainingMode === 'all') {
+            state.targetString = Math.floor(Math.random() * STRING_COUNT);
+        } else {
+            state.targetString = state.trainingMode - 1;
+        }
+        if (state.quizFretRange === '1-12') {
+            state.targetFret = Math.floor(Math.random() * 13);
+        } else {
+            state.targetFret = 13 + Math.floor(Math.random() * 12);
+        }
+        state.targetNoteIndex = getNoteIndex(state.targetString, state.targetFret);
+        state.fretViewStart = state.targetFret >= 12 ? 12 : 0;
+        nextQuestionBtn.disabled = true;
+        hideMessage();
+        resetAnswerButtons();
+        drawFretboard();
+        const midiNote = BASE_MIDI_NOTES[state.targetString] + state.targetFret;
+        playTone(midiNote);
+    }
+    
+    function handleAnswerClick(event) {
+        if (!state.isQuizActive) return;
+        const clickedButton = event.currentTarget;
+        const clickedNoteIndex = parseInt(clickedButton.dataset.noteIndex);
+        const midiNote = 60 + clickedNoteIndex;
+        playTone(midiNote);
+        const isCorrect = clickedNoteIndex === state.targetNoteIndex;
+        state.isQuizActive = false;
+        disableAnswerButtons();
+        if (isCorrect) {
+            state.score++;
+            scoreEl.textContent = state.score;
+            showMessage('正解！', 'text-green-600');
+            clickedButton.classList.add('correct');
+        } else {
+            const noteArray = state.noteNameSystem === 'solfege' ? NOTES_SOLFEGE_ENHARMONIC : NOTES_ENHARMONIC;
+            showMessage(`不正解... 正解は ${noteArray[state.targetNoteIndex]}`, 'text-red-600');
+            clickedButton.classList.add('incorrect');
+            answerButtonsContainer.querySelector(`[data-note-index='${state.targetNoteIndex}']`).classList.add('correct');
+        }
+        nextQuestionBtn.disabled = false;
+    }
+    
+    function createQuestionMarker() {
+        const svgNS = "http://www.w3.org/2000/svg";
+        const g = document.createElementNS(svgNS, "g");
+        g.classList.add('question-marker');
+        const displayString = state.targetString;
+        const displayFret = state.targetFret - state.fretViewStart;
+        let cx;
+        if (state.targetFret === 0) { cx = (0.25) * FRET_WIDTH; } 
+        else { cx = (displayFret) * FRET_WIDTH; }
+        const cy = (displayString + 0.5) * FRET_HEIGHT;
+        const circle = document.createElementNS(svgNS, 'circle');
+        circle.setAttribute('cx', cx); circle.setAttribute('cy', cy);
+        circle.setAttribute('r', FRET_HEIGHT * 0.4);
+        const text = document.createElementNS(svgNS, 'text');
+        text.setAttribute('x', cx); text.setAttribute('y', cy + 7);
+        text.setAttribute('text-anchor', 'middle'); text.textContent = '?';
+        g.appendChild(circle); g.appendChild(text);
+        return g;
+    }
+
+    // --- UIヘルパー ---
+    function updateAnswerButtonsText() {
+        const noteArray = state.noteNameSystem === 'solfege' ? NOTES_SOLFEGE_ENHARMONIC : NOTES_ENHARMONIC;
+        answerButtonsContainer.querySelectorAll('.answer-btn').forEach((btn, index) => {
+            btn.textContent = noteArray[index];
+        });
+    }
+
+    function createAnswerButtons() {
+        NOTES_ENHARMONIC.forEach((note, index) => {
+            const button = document.createElement('button');
+            button.dataset.noteIndex = index;
+            button.classList.add('btn', 'answer-btn');
+            button.addEventListener('click', handleAnswerClick);
+            answerButtonsContainer.appendChild(button);
+        });
+        updateAnswerButtonsText();
+    }
+
+    function resetAnswerButtons() {
+        answerButtonsContainer.querySelectorAll('.answer-btn').forEach(btn => {
+            btn.disabled = false;
+            btn.classList.remove('correct', 'incorrect');
+        });
+    }
+    
+    function disableAnswerButtons() {
+        answerButtonsContainer.querySelectorAll('.answer-btn').forEach(btn => {
+            btn.disabled = true;
+        });
+    }
+
+    function showMessage(text, className) {
+        messageEl.textContent = text;
+        messageEl.className = `text-xl h-8 font-semibold transition-opacity duration-300 ${className} opacity-100`;
+    }
+
+    function hideMessage() {
+        messageEl.textContent = '';
+        messageEl.classList.add('opacity-0');
+    }
+    
+    // --- 初期化 ---
+    function init() {
+        document.body.addEventListener('click', initAudioAndLoadSounds, { once: true });
+        createAnswerButtons();
+        generateQuestion();
+        nextQuestionBtn.addEventListener('click', generateQuestion);
+        fretboardContainer.addEventListener('click', () => {
+            if (state.targetString !== -1 && state.targetFret !== -1) {
+                const midiNote = BASE_MIDI_NOTES[state.targetString] + state.targetFret;
+                playTone(midiNote);
+            }
+        });
+        stringModeSelector.addEventListener('click', (e) => {
+            if (e.target.matches('.option-btn')) {
+                stringModeSelector.querySelector('.active-mode').classList.remove('active-mode');
+                e.target.classList.add('active-mode');
+                const newMode = e.target.dataset.mode;
+                state.trainingMode = newMode === 'all' ? 'all' : parseInt(newMode, 10);
+                generateQuestion();
+            }
+        });
+        optionsSelector.addEventListener('click', (e) => {
+            const target = e.target.closest('.option-btn');
+            if (!target) return;
+            if (target.matches('[data-quiz-range]')) {
+                optionsSelector.querySelector('.active-mode[data-quiz-range]').classList.remove('active-mode');
+                target.classList.add('active-mode');
+                state.quizFretRange = target.dataset.quizRange;
+                generateQuestion();
+            } else if (target.id === 'toggle-open-strings-btn') {
+                state.showOpenStrings = !state.showOpenStrings;
+                target.classList.toggle('active-mode', state.showOpenStrings);
+                drawFretboard();
+            } else if (target.id === 'toggle-note-name-btn') {
+                state.noteNameSystem = state.noteNameSystem === 'english' ? 'solfege' : 'english';
+                target.classList.toggle('active-mode', state.noteNameSystem === 'solfege');
+                target.textContent = state.noteNameSystem === 'solfege' ? 'ABC' : 'ドレミ';
+                updateAnswerButtonsText();
+                drawFretboard();
+            } else if (target.id === 'toggle-sound-btn') {
+                state.isSoundEnabled = !state.isSoundEnabled;
+                target.classList.toggle('active-mode', state.isSoundEnabled);
+                target.textContent = state.isSoundEnabled ? 'サウンドON' : 'サウンドOFF';
+            }
+        });
+    }
+
+    init();
+});
+</script>
+
+</body>
+</html>
+

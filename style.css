@@ -1,0 +1,89 @@
+body {
+    font-family: 'Inter', 'Noto Sans JP', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* アニメーション */
+@keyframes pop {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+
+/* ボタン共通スタイル */
+.btn {
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem; /* rounded-md */
+    transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+    border: 1px solid transparent;
+    -webkit-tap-highlight-color: transparent; /* Disable tap highlight on mobile */
+}
+
+/* オプションボタン */
+.option-btn {
+    background-color: #f3f4f6; /* gray-100 */
+    color: #374151; /* gray-700 */
+    border-color: #d1d5db; /* gray-300 */
+}
+
+.option-btn:hover {
+    background-color: #e5e7eb; /* gray-200 */
+}
+
+.option-btn.active-mode {
+    background-color: #2563eb; /* blue-600 */
+    color: white;
+    border-color: #2563eb;
+}
+
+/* 解答ボタン */
+.answer-btn {
+    background-color: #ffffff; /* white */
+    color: #374151; /* gray-700 */
+    border-color: #d1d5db; /* gray-300 */
+}
+
+.answer-btn:hover:not(:disabled) {
+     background-color: #f9fafb; /* gray-50 */
+}
+
+.answer-btn.correct {
+    background-color: #16a34a; /* green-600 */
+    color: white;
+    border-color: #16a34a;
+}
+
+.answer-btn.incorrect {
+    background-color: #dc2626; /* red-600 */
+    color: white;
+    border-color: #dc2626;
+    animation: shake 0.5s ease-in-out;
+}
+
+.answer-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* クエスチョンマーカー */
+.question-marker {
+    fill: #2563eb; /* blue-600 */
+    stroke: white;
+    stroke-width: 2.5px;
+    animation: pop 0.3s ease-out;
+    pointer-events: none;
+}
+
+ .question-marker text {
+    font-weight: bold;
+    font-size: 20px;
+    font-family: sans-serif;
+    fill: white;
+}
