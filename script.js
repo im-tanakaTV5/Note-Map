@@ -271,11 +271,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             s.targetString = s.trainingMode - 1;
         }
+
         if (s.quizFretRange === '1-12') {
-            s.targetFret = Math.floor(Math.random() * 13);
-        } else {
-            s.targetFret = 13 + Math.floor(Math.random() * 12);
+            s.targetFret = Math.floor(Math.random() * 13); // 0 to 12
+        } else if (s.quizFretRange === '13-24') {
+            s.targetFret = 13 + Math.floor(Math.random() * 12); // 13 to 24
+        } else { // '1-24'
+            s.targetFret = Math.floor(Math.random() * (FRET_COUNT + 1)); // 0 to 24
         }
+
         s.targetNoteIndex = (TUNING[s.targetString] + s.targetFret) % 12;
         s.fretViewStart = s.targetFret > 12 ? 12 : 0;
         if (s.targetFret === 0) {
@@ -456,6 +460,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (target.id === 'toggle-note-name-btn') {
                 state.noteNameSystem = state.noteNameSystem === 'english' ? 'solfege' : 'english';
                 target.classList.toggle('active-mode', state.noteNameSystem === 'solfege');
+                
+                if (state.noteNameSystem === 'solfege') {
+                    target.textContent = 'CDE→ドレミ';
+                } else {
+                    target.textContent = 'ドレミ→CDE';
+                }
+
                 updateAnswerButtonsText();
                 
                 if (state.currentQuiz === 'fretboard') {
