@@ -15,7 +15,6 @@
     <div class="w-full max-w-7xl mx-auto">
         <header class="text-center mb-4">
             <h1 class="text-3xl font-bold text-gray-800">ギター理論学習アプリ</h1>
-            <p class="text-gray-600 mt-1">クイズで効率的に音楽理論を学びましょう</p>
         </header>
 
         <!-- タブナビゲーション -->
@@ -53,7 +52,7 @@
                 <!-- オプション -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 my-6">
                     <div class="text-center">
-                        <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">弦の選択</h3>
+                        <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">練習する弦を選択</h3>
                         <div id="string-mode-selector" class="flex justify-center flex-wrap gap-2">
                             <button data-mode="all" class="btn option-btn active-mode">全弦</button>
                             <button data-mode="1" class="btn option-btn">1弦</button><button data-mode="2" class="btn option-btn">2弦</button>
@@ -66,12 +65,14 @@
                         <div id="fretboard-quiz-range-selector" class="flex justify-center flex-wrap gap-2">
                             <button data-quiz-range="1-12" class="btn option-btn active-mode">1-12 F</button>
                             <button data-quiz-range="13-24" class="btn option-btn">13-24 F</button>
+                            <button data-quiz-range="1-24" class="btn option-btn">1-24 F</button>
                         </div>
                     </div>
                      <div class="text-center">
                         <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">表示オプション</h3>
-                        <div id="fretboard-display-options-selector" class="flex justify-center flex-wrap gap-2">
+                        <div id="fretboard-display-options-selector" class="flex justify-center items-center flex-wrap gap-2">
                              <button id="toggle-open-strings-btn" class="btn option-btn">開放弦</button>
+                             <span class="text-sm text-gray-500">（開放弦の音名を表示します）</span>
                         </div>
                     </div>
                 </div>
@@ -116,7 +117,7 @@
              <div class="text-center mt-8 pt-6 border-t">
                 <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">共通オプション</h3>
                 <div id="common-options-selector" class="flex justify-center flex-wrap gap-2">
-                    <button id="toggle-note-name-btn" class="btn option-btn">ドレミ/CDE</button>
+                    <button id="toggle-note-name-btn" class="btn option-btn">ドレミ→CDE</button>
                     <button id="toggle-sound-btn" class="btn option-btn active-mode">サウンドON</button>
                 </div>
             </div>
