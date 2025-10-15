@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 定数と設定 ---
     const NOTES_ENHARMONIC = ['C', 'C#(Db)', 'D', 'D#(Eb)', 'E', 'F', 'F#(Gb)', 'G', 'G#(Ab)', 'A', 'A#(Bb)', 'B'];
     const NOTES_SOLFEGE_ENHARMONIC = ['ド', 'ド#(レb)', 'レ', 'レ#(ミb)', 'ミ', 'ファ', 'ファ#(ソb)', 'ソ', 'ソ#(ラb)', 'ラ', 'ラ#(シb)', 'シ'];
+    const SHARP_NOTE_INDICES = [1, 3, 6, 8, 10];
     const TUNING = [4, 11, 7, 2, 9, 4]; 
     const FRET_COUNT = 24;
     const STRING_COUNT = 6;
@@ -11,19 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const DISPLAY_FRET_COUNT = 12;
     const FRET_NUM_AREA_HEIGHT = 30;
 
-    // --- 音声関連の定数 ---
-    const BASE_MIDI_NOTES = [64, 59, 55, 50, 45, 40]; 
-    let audioContext;
-    let soundBuffers = {}; 
-    let soundsLoaded = false;
-    const SOUND_FILE_PATH = './sounds/'; 
-    const SOUND_FILE_EXTENSION = '.mp3';
-    const MIN_MIDI_NOTE = 40; 
-    const MAX_MIDI_NOTE = 88;
-
     // --- DOM要素 ---
-    const loadingOverlay = document.getElementById('loading-overlay');
-    const loadingText = loadingOverlay.querySelector('p');
     const messageEl = document.getElementById('message');
     const answerButtonsContainer = document.getElementById('answer-buttons');
 
@@ -38,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fretboardScoreEl = document.getElementById('fretboard-score');
     const fretboardNextBtn = document.getElementById('fretboard-next-btn');
     const stringModeSelector = document.getElementById('string-mode-selector');
-    const fretboardQuizRangeSelector = document.getElementById('fretboard-quiz-range-selector');
+    const fretboardQuizOptionsSelector = document.getElementById('fretboard-quiz-options-selector');
     const fretboardDisplayOptionsSelector = document.getElementById('fretboard-display-options-selector');
     const fretboardQuestionTextEl = document.getElementById('fretboard-question-area').querySelector('p');
 
@@ -53,20 +42,20 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- アプリケーションの状態 ---
     let state = {
-        currentQuiz: 'fretboard', // 'fretboard' or 'solfege'
+        currentQuiz: 'fretboard',
         isQuizActive: true,
         showOpenStrings: false,
         noteNameSystem: 'english', 
-        isSoundEnabled: true, 
 
         fretboard: {
             score: 0,
             targetString: -1,
             targetFret: -1,
             targetNoteIndex: -1,
-            trainingMode: 'all',
+            selectedStrings: ['all'],
             quizFretRange: '1-12',
             fretViewStart: 0,
+            excludeSharps: false,
         },
 
         solfege: {
@@ -75,80 +64,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- 音声再生機能 ---
-    async function initAudioAndLoadSounds() {
-        if (audioContext) return;
-        try {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            loadingText.textContent = 'サウンドを読み込んでいます...';
-            
-            await loadSounds();
-            
-            if (Object.keys(soundBuffers).length > 0) {
-                soundsLoaded = true;
-                console.log('サンプリング音源の読み込みに成功しました。');
-            } else {
-                soundsLoaded = false;
-                console.warn('サンプリング音源が見つかりませんでした。内蔵音源を使用します。');
-            }
-
-        } catch(e) {
-            console.error("Audio setup failed:", e);
-            soundsLoaded = false;
-        } finally {
-            loadingOverlay.style.display = 'none';
-        }
-    }
-
-    async function loadSounds() {
-        if (!audioContext) return;
-        const loadingPromises = [];
-        for (let i = MIN_MIDI_NOTE; i <= MAX_MIDI_NOTE; i++) {
-            const url = `${SOUND_FILE_PATH}${i}${SOUND_FILE_EXTENSION}`;
-            const promise = fetch(url)
-                .then(response => {
-                    if (!response.ok) return null;
-                    return response.arrayBuffer();
-                })
-                .then(arrayBuffer => {
-                    if (arrayBuffer) return audioContext.decodeAudioData(arrayBuffer);
-                    return null;
-                })
-                .then(audioBuffer => { 
-                    if (audioBuffer) soundBuffers[i] = audioBuffer; 
-                })
-                .catch(error => { /* do nothing */ });
-            loadingPromises.push(promise);
-        }
-        await Promise.all(loadingPromises);
-    }
-
-    function playTone(midiNote) {
-        if (!state.isSoundEnabled || !audioContext) return;
-
-        if (soundsLoaded && soundBuffers[midiNote]) {
-            const source = audioContext.createBufferSource();
-            source.buffer = soundBuffers[midiNote];
-            source.connect(audioContext.destination);
-            source.start(0);
-        } else {
-            const freq = 440 * Math.pow(2, (midiNote - 69) / 12);
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            oscillator.type = 'triangle';
-            oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
-            gainNode.gain.setValueAtTime(0.5, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.7);
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.8);
-        }
-    }
-
     // --- 指板描画 ---
     function drawFretboard() {
-        const { fretViewStart, trainingMode, targetString, targetFret } = state.fretboard;
+        const { fretViewStart, selectedStrings, targetString, targetFret } = state.fretboard;
         const svgNS = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(svgNS, "svg");
         const fretboardHeight = STRING_COUNT * FRET_HEIGHT;
@@ -192,7 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const y = (i + 0.5) * FRET_HEIGHT;
             const stringLine = document.createElementNS(svgNS, 'line');
             const stringIndex = i;
-            const isStringActive = trainingMode === 'all' || (trainingMode - 1) === stringIndex;
+            const stringNumber = stringIndex + 1;
+            const isStringActive = selectedStrings.includes('all') || selectedStrings.includes(stringNumber);
             stringLine.setAttribute('x1', FRET_WIDTH/2); stringLine.setAttribute('y1', y);
             stringLine.setAttribute('x2', totalWidth - FRET_WIDTH/2); stringLine.setAttribute('y2', y);
             stringLine.setAttribute('stroke', isStringActive ? '#6b7280' : '#d1d5db');
@@ -266,21 +185,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function generateFretboardQuestion() {
         const s = state.fretboard;
-        if (s.trainingMode === 'all') {
-            s.targetString = Math.floor(Math.random() * STRING_COUNT);
-        } else {
-            s.targetString = s.trainingMode - 1;
-        }
+        let isSharp;
+        do {
+            if (s.selectedStrings.includes('all')) {
+                s.targetString = Math.floor(Math.random() * STRING_COUNT);
+            } else {
+                const randomStringNumber = s.selectedStrings[Math.floor(Math.random() * s.selectedStrings.length)];
+                s.targetString = randomStringNumber - 1;
+            }
 
-        if (s.quizFretRange === '1-12') {
-            s.targetFret = Math.floor(Math.random() * 13); // 0 to 12
-        } else if (s.quizFretRange === '13-24') {
-            s.targetFret = 13 + Math.floor(Math.random() * 12); // 13 to 24
-        } else { // '1-24'
-            s.targetFret = Math.floor(Math.random() * (FRET_COUNT + 1)); // 0 to 24
-        }
+            if (s.quizFretRange === '1-12') {
+                s.targetFret = Math.floor(Math.random() * 13);
+            } else if (s.quizFretRange === '13-24') {
+                s.targetFret = 13 + Math.floor(Math.random() * 12);
+            } else { // '1-24'
+                s.targetFret = Math.floor(Math.random() * (FRET_COUNT + 1));
+            }
 
-        s.targetNoteIndex = (TUNING[s.targetString] + s.targetFret) % 12;
+            s.targetNoteIndex = (TUNING[s.targetString] + s.targetFret) % 12;
+            isSharp = SHARP_NOTE_INDICES.includes(s.targetNoteIndex);
+
+        } while (s.excludeSharps && isSharp);
+
         s.fretViewStart = s.targetFret > 12 ? 12 : 0;
         if (s.targetFret === 0) {
             fretboardQuestionTextEl.innerHTML = 'この<strong class="text-blue-600">開放弦</strong>の音名は何でしょう？';
@@ -289,8 +215,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         fretboardNextBtn.disabled = true;
         drawFretboard();
-        const midiNote = BASE_MIDI_NOTES[s.targetString] + s.targetFret;
-        playTone(midiNote);
     }
 
     function generateSolfegeQuestion() {
@@ -304,15 +228,12 @@ document.addEventListener('DOMContentLoaded', () => {
             solfegeQuestionEl.textContent = NOTES_ENHARMONIC[s.targetNoteIndex];
         }
         solfegeNextBtn.disabled = true;
-        const midiNote = 60 + s.targetNoteIndex;
-        playTone(midiNote);
     }
     
     function handleAnswerClick(event) {
         if (!state.isQuizActive) return;
         const clickedButton = event.currentTarget;
         const clickedNoteIndex = parseInt(clickedButton.dataset.noteIndex);
-        playTone(60 + clickedNoteIndex);
         const targetNoteIndex = state.currentQuiz === 'fretboard' ? state.fretboard.targetNoteIndex : state.solfege.targetNoteIndex;
         const isCorrect = clickedNoteIndex === targetNoteIndex;
         
@@ -348,6 +269,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const noteArray = state.noteNameSystem === 'english' ? NOTES_ENHARMONIC : NOTES_SOLFEGE_ENHARMONIC;
         answerButtonsContainer.querySelectorAll('.answer-btn').forEach((btn, index) => {
             btn.textContent = noteArray[index];
+        });
+    }
+
+    function updateAnswerButtonsVisibility() {
+        const exclude = state.currentQuiz === 'fretboard' && state.fretboard.excludeSharps;
+        answerButtonsContainer.querySelectorAll('.answer-btn').forEach(btn => {
+            const noteIndex = parseInt(btn.dataset.noteIndex, 10);
+            if (exclude && SHARP_NOTE_INDICES.includes(noteIndex)) {
+                btn.classList.add('hidden');
+            } else {
+                btn.classList.remove('hidden');
+            }
         });
     }
 
@@ -398,12 +331,12 @@ document.addEventListener('DOMContentLoaded', () => {
             fretboardQuizContainer.classList.add('hidden');
             solfegeQuizContainer.classList.remove('hidden');
         }
+        updateAnswerButtonsVisibility();
         generateQuestion();
     }
     
     // --- 初期化 ---
     function init() {
-        document.body.addEventListener('click', initAudioAndLoadSounds, { once: true });
         createAnswerButtons();
         
         fretboardNextBtn.addEventListener('click', generateQuestion);
@@ -411,37 +344,58 @@ document.addEventListener('DOMContentLoaded', () => {
         tabFretboard.addEventListener('click', (e) => { e.preventDefault(); switchTab('fretboard'); });
         tabSolfege.addEventListener('click', (e) => { e.preventDefault(); switchTab('solfege'); });
 
-        fretboardContainer.addEventListener('click', () => {
-            const { targetString, targetFret } = state.fretboard;
-            if (targetString !== -1 && targetFret !== -1) {
-                const midiNote = BASE_MIDI_NOTES[targetString] + targetFret;
-                playTone(midiNote);
+        stringModeSelector.addEventListener('click', (e) => {
+            const target = e.target.closest('.option-btn');
+            if (!target) return;
+
+            const mode = target.dataset.mode;
+            const allStringsBtn = stringModeSelector.querySelector('[data-mode="all"]');
+
+            if (mode === 'all') {
+                state.fretboard.selectedStrings = ['all'];
+                stringModeSelector.querySelectorAll('.option-btn').forEach(btn => btn.classList.remove('active-mode'));
+                target.classList.add('active-mode');
+            } else {
+                allStringsBtn.classList.remove('active-mode');
+                if (state.fretboard.selectedStrings.includes('all')) {
+                    state.fretboard.selectedStrings = [];
+                }
+                
+                const stringNumber = parseInt(mode, 10);
+                const index = state.fretboard.selectedStrings.indexOf(stringNumber);
+
+                if (index > -1) {
+                    state.fretboard.selectedStrings.splice(index, 1);
+                    target.classList.remove('active-mode');
+                } else {
+                    state.fretboard.selectedStrings.push(stringNumber);
+                    target.classList.add('active-mode');
+                }
+
+                if (state.fretboard.selectedStrings.length === 0) {
+                    state.fretboard.selectedStrings = ['all'];
+                    allStringsBtn.classList.add('active-mode');
+                }
             }
-        });
-        
-        solfegeQuestionEl.addEventListener('click', () => {
-            const { targetNoteIndex } = state.solfege;
-            if (targetNoteIndex !== -1) {
-                playTone(60 + targetNoteIndex);
-            }
+            drawFretboard();
+            generateQuestion();
         });
 
-        stringModeSelector.addEventListener('click', (e) => {
-            if (e.target.matches('.option-btn')) {
-                stringModeSelector.querySelector('.active-mode').classList.remove('active-mode');
-                e.target.classList.add('active-mode');
-                state.fretboard.trainingMode = e.target.dataset.mode === 'all' ? 'all' : parseInt(e.target.dataset.mode, 10);
+        fretboardQuizOptionsSelector.addEventListener('click', (e) => {
+            const target = e.target.closest('.option-btn');
+            if (!target) return;
+
+            if (target.matches('[data-quiz-range]')) {
+                fretboardQuizOptionsSelector.querySelector('.active-mode[data-quiz-range]').classList.remove('active-mode');
+                target.classList.add('active-mode');
+                state.fretboard.quizFretRange = target.dataset.quizRange;
+                generateQuestion();
+            } else if (target.id === 'toggle-sharps-btn') {
+                state.fretboard.excludeSharps = !state.fretboard.excludeSharps;
+                target.classList.toggle('active-mode', state.fretboard.excludeSharps);
+                updateAnswerButtonsVisibility();
                 generateQuestion();
             }
-        });
-
-        fretboardQuizRangeSelector.addEventListener('click', (e) => {
-            const target = e.target.closest('.option-btn[data-quiz-range]');
-            if (!target) return;
-            fretboardQuizRangeSelector.querySelector('.active-mode').classList.remove('active-mode');
-            target.classList.add('active-mode');
-            state.fretboard.quizFretRange = target.dataset.quizRange;
-            generateQuestion();
         });
 
         fretboardDisplayOptionsSelector.addEventListener('click', (e) => {
@@ -474,10 +428,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     generateQuestion();
                 }
-            } else if (target.id === 'toggle-sound-btn') {
-                state.isSoundEnabled = !state.isSoundEnabled;
-                target.classList.toggle('active-mode', state.isSoundEnabled);
-                target.textContent = state.isSoundEnabled ? 'サウンドON' : 'サウンドOFF';
             }
         });
         
