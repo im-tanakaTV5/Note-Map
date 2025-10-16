@@ -44,7 +44,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const fretboardQuestionTextEl = document.getElementById('fretboard-question-area').querySelector('p');
     const fretboardPositionHintEl = document.getElementById('fretboard-position-hint');
 
-
     // Solfege Quiz UI
     const solfegeScoreEl = document.getElementById('solfege-score');
     const solfegeNextBtn = document.getElementById('solfege-next-btn');
@@ -71,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
             trainingMode: 'all',
             quizFretRange: '1-12',
             fretViewStart: 0,
+            hideFretboard: false,
         },
 
         solfege: {
@@ -296,7 +296,9 @@ document.addEventListener('DOMContentLoaded', () => {
             fretboardPositionHintEl.textContent = `${s.targetString + 1}弦 ${s.targetFret}フレット`;
         }
         fretboardNextBtn.disabled = true;
-        drawFretboard();
+        if (!s.hideFretboard) {
+            drawFretboard();
+        }
         const midiNote = BASE_MIDI_NOTES[s.targetString] + s.targetFret;
         playTone(midiNote);
     }
@@ -441,6 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tabSolfege.addEventListener('click', (e) => { e.preventDefault(); switchTab('solfege'); });
 
         fretboardContainer.addEventListener('click', () => {
+            if (state.fretboard.hideFretboard) return;
             const { targetString, targetFret } = state.fretboard;
             if (targetString !== -1 && targetFret !== -1) {
                 const midiNote = BASE_MIDI_NOTES[targetString] + targetFret;
@@ -480,6 +483,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.showOpenStrings = !state.showOpenStrings;
                 target.classList.toggle('active-mode', state.showOpenStrings);
                 drawFretboard();
+            } else if (target.id === 'toggle-fretboard-visibility-btn') {
+                state.fretboard.hideFretboard = !state.fretboard.hideFretboard;
+                target.classList.toggle('active-mode', state.fretboard.hideFretboard);
+                fretboardContainer.parentElement.classList.toggle('hidden', state.fretboard.hideFretboard);
+                target.textContent = state.fretboard.hideFretboard ? '指板を表示' : '指板を隠す';
             }
         });
 
