@@ -26,6 +26,11 @@
         </div>
 
         <main class="bg-white rounded-lg shadow-lg border border-gray-200 p-6 md:p-8 w-full relative">
+            <!-- ローディング画面 -->
+            <div id="loading-overlay" class="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-50 rounded-lg">
+                <p class="text-lg font-semibold text-gray-700">クリックしてサウンドの読み込みを開始</p>
+            </div>
+
             <!-- ===== 指板クイズ ===== -->
             <div id="fretboard-quiz-container">
                 <!-- コントロールパネル -->
@@ -33,21 +38,16 @@
                     <div id="fretboard-question-area" class="text-center md:text-left mb-4 md:mb-0">
                         <p class="text-lg text-gray-700">この場所の音名は何でしょう？</p>
                     </div>
-                    <div class="flex items-center space-x-4">
-                        <div id="fretboard-score-area" class="text-lg">
-                            <span class="font-semibold text-gray-600">スコア:</span>
-                            <span id="fretboard-score" class="font-bold text-blue-600 text-xl">0</span>
-                        </div>
-                        <button id="fretboard-next-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
-                            次の問題へ
-                        </button>
+                    <div id="fretboard-score-area" class="text-lg">
+                        <span class="font-semibold text-gray-600">スコア:</span>
+                        <span id="fretboard-score" class="font-bold text-blue-600 text-xl">0</span>
                     </div>
                 </div>
                 
                 <!-- オプション -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 my-6">
                     <div class="text-center">
-                        <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">練習する弦を選択 <span class="text-xs font-normal normal-case">(複数選択可)</span></h3>
+                        <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">練習する弦を選択</h3>
                         <div id="string-mode-selector" class="flex justify-center flex-wrap gap-2">
                             <button data-mode="all" class="btn option-btn active-mode">全弦</button>
                             <button data-mode="1" class="btn option-btn">1弦</button><button data-mode="2" class="btn option-btn">2弦</button>
@@ -56,12 +56,11 @@
                         </div>
                     </div>
                     <div class="text-center">
-                        <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">出題オプション</h3>
-                        <div id="fretboard-quiz-options-selector" class="flex justify-center flex-wrap gap-2">
+                        <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">出題範囲</h3>
+                        <div id="fretboard-quiz-range-selector" class="flex justify-center flex-wrap gap-2">
                             <button data-quiz-range="1-12" class="btn option-btn active-mode">1-12 F</button>
                             <button data-quiz-range="13-24" class="btn option-btn">13-24 F</button>
                             <button data-quiz-range="1-24" class="btn option-btn">1-24 F</button>
-                            <button id="toggle-sharps-btn" class="btn option-btn">半音を省く</button>
                         </div>
                     </div>
                      <div class="text-center">
@@ -74,9 +73,11 @@
                 </div>
 
                 <!-- 指板エリア -->
-                <div class="w-full overflow-x-auto rounded-lg border border-gray-300 mb-6 bg-white">
-                    <div id="fretboard-container" class="relative"></div>
+                <div class="w-full overflow-x-auto rounded-lg border border-gray-300 mb-2 bg-white">
+                    <div id="fretboard-container" class="relative cursor-pointer"></div>
                 </div>
+                 <!-- Position Hint Area -->
+                <div id="fretboard-position-hint" class="text-center text-lg font-semibold text-gray-700 h-8 mb-4"></div>
             </div>
 
              <!-- ===== 音名変換クイズ ===== -->
@@ -86,20 +87,15 @@
                     <div class="text-center md:text-left mb-4 md:mb-0">
                         <p class="text-lg text-gray-700">この音名を英語表記にすると？</p>
                     </div>
-                    <div class="flex items-center space-x-4">
-                        <div id="solfege-score-area" class="text-lg">
-                            <span class="font-semibold text-gray-600">スコア:</span>
-                            <span id="solfege-score" class="font-bold text-blue-600 text-xl">0</span>
-                        </div>
-                        <button id="solfege-next-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
-                            次の問題へ
-                        </button>
+                     <div id="solfege-score-area" class="text-lg">
+                        <span class="font-semibold text-gray-600">スコア:</span>
+                        <span id="solfege-score" class="font-bold text-blue-600 text-xl">0</span>
                     </div>
                 </div>
 
                 <!-- 問題表示エリア -->
                 <div class="text-center my-12">
-                    <p id="solfege-question" class="text-7xl font-bold text-blue-600"></p>
+                    <p id="solfege-question" class="text-7xl font-bold text-blue-600 cursor-pointer" title="クリックして音を再確認"></p>
                 </div>
             </div>
 
@@ -107,13 +103,24 @@
             <!-- 解答エリア -->
             <div id="answer-area" class="text-center">
                 <p id="message" class="text-xl h-8 font-semibold transition-opacity duration-300 opacity-100"></p>
-                <div id="answer-buttons" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-4 max-w-4xl mx-auto"></div>
+                <div id="answer-buttons" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 mt-4 max-w-4xl mx-auto"></div>
+                <!-- Next Question Button Container -->
+                <div id="next-button-container" class="mt-6">
+                    <button id="fretboard-next-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
+                        次の問題へ
+                    </button>
+                    <button id="solfege-next-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-md disabled:opacity-50 disabled:cursor-not-allowed hidden">
+                        次の問題へ
+                    </button>
+                </div>
             </div>
             <!-- 共通オプション -->
              <div class="text-center mt-8 pt-6 border-t">
                 <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">共通オプション</h3>
                 <div id="common-options-selector" class="flex justify-center flex-wrap gap-2">
                     <button id="toggle-note-name-btn" class="btn option-btn">ドレミ→CDE</button>
+                    <button id="toggle-semitones-btn" class="btn option-btn">#/♭無し</button>
+                    <button id="toggle-sound-btn" class="btn option-btn active-mode">サウンドON</button>
                 </div>
             </div>
         </main>
