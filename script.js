@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const NOTES_ENHARMONIC = ['C', 'C#(Db)', 'D', 'D#(Eb)', 'E', 'F', 'F#(Gb)', 'G', 'G#(Ab)', 'A', 'A#(Bb)', 'B'];
     const NOTES_SOLFEGE_ENHARMONIC = ['ド', 'ド#(レb)', 'レ', 'レ#(ミb)', 'ミ', 'ファ', 'ファ#(ソb)', 'ソ', 'ソ#(ラb)', 'ラ', 'ラ#(シb)', 'シ'];
     const NATURAL_INDICES = [0, 2, 4, 5, 7, 9, 11]; // C, D, E, F, G, A, B
+    const NATURAL_NOTES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
     const TUNING = [4, 11, 7, 2, 9, 4]; 
     const FRET_COUNT = 24;
     const STRING_COUNT = 6;
@@ -27,14 +28,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingText = loadingOverlay.querySelector('p');
     const messageEl = document.getElementById('message');
     const answerButtonsContainer = document.getElementById('answer-buttons');
-
-    // Tabs
     const tabFretboard = document.getElementById('tab-fretboard');
     const tabSolfege = document.getElementById('tab-solfege');
     const fretboardQuizContainer = document.getElementById('fretboard-quiz-container');
     const solfegeQuizContainer = document.getElementById('solfege-quiz-container');
-
-    // Fretboard Quiz UI
     const fretboardContainer = document.getElementById('fretboard-container');
     const fretboardScoreEl = document.getElementById('fretboard-score');
     const fretboardNextBtn = document.getElementById('fretboard-next-btn');
@@ -43,16 +40,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const fretboardDisplayOptionsSelector = document.getElementById('fretboard-display-options-selector');
     const fretboardQuestionTextEl = document.getElementById('fretboard-question-area').querySelector('p');
     const fretboardPositionHintEl = document.getElementById('fretboard-position-hint');
-
-    // Solfege Quiz UI
     const solfegeScoreEl = document.getElementById('solfege-score');
     const solfegeNextBtn = document.getElementById('solfege-next-btn');
     const solfegeQuestionEl = document.getElementById('solfege-question');
     const solfegeQuestionTextEl = solfegeQuizContainer.querySelector('p');
-
-    // Common Options
     const commonOptionsSelector = document.getElementById('common-options-selector');
     
+    // Note Filter Modal UI
+    const noteFilterModal = document.getElementById('note-filter-modal');
+    const noteFilterOpenBtn = document.getElementById('note-filter-open-btn');
+    const noteFilterButtons = document.getElementById('note-filter-buttons');
+    const noteFilterCloseBtn = document.getElementById('note-filter-close-btn');
+    const noteFilterClearBtn = document.getElementById('note-filter-clear-btn');
+
+
     // --- アプリケーションの状態 ---
     let state = {
         currentQuiz: 'fretboard',
@@ -71,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
             quizFretRange: '1-12',
             fretViewStart: 0,
             hideFretboard: false,
+            noteFilter: [], // Array of note indices to include
         },
 
         solfege: {
@@ -88,10 +90,8 @@ document.addEventListener('DOMContentLoaded', () => {
             await loadSounds();
             if (Object.keys(soundBuffers).length > 0) {
                 soundsLoaded = true;
-                console.log('サンプリング音源の読み込みに成功しました。');
             } else {
                 soundsLoaded = false;
-                console.warn('サンプリング音源が見つかりませんでした。内蔵音源を使用します。');
             }
         } catch(e) {
             console.error("Audio setup failed:", e);
@@ -107,18 +107,10 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = MIN_MIDI_NOTE; i <= MAX_MIDI_NOTE; i++) {
             const url = `${SOUND_FILE_PATH}${i}${SOUND_FILE_EXTENSION}`;
             const promise = fetch(url)
-                .then(response => {
-                    if (!response.ok) return null;
-                    return response.arrayBuffer();
-                })
-                .then(arrayBuffer => {
-                    if (arrayBuffer) return audioContext.decodeAudioData(arrayBuffer);
-                    return null;
-                })
-                .then(audioBuffer => { 
-                    if (audioBuffer) soundBuffers[i] = audioBuffer; 
-                })
-                .catch(error => { /* do nothing */ });
+                .then(response => response.ok ? response.arrayBuffer() : null)
+                .then(arrayBuffer => arrayBuffer ? audioContext.decodeAudioData(arrayBuffer) : null)
+                .then(audioBuffer => { if (audioBuffer) soundBuffers[i] = audioBuffer; })
+                .catch(error => {});
             loadingPromises.push(promise);
         }
         await Promise.all(loadingPromises);
@@ -266,26 +258,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function generateFretboardQuestion() {
         const s = state.fretboard;
-        let noteIndex;
+        let possiblePositions = [];
+        const stringsToTest = s.trainingMode === 'all' ? [0, 1, 2, 3, 4, 5] : [s.trainingMode - 1];
+        let minFret = 0, maxFret = 0;
 
-        do {
-            if (s.trainingMode === 'all') {
-                s.targetString = Math.floor(Math.random() * STRING_COUNT);
-            } else {
-                s.targetString = s.trainingMode - 1;
-            }
+        if (s.quizFretRange === '1-12') { minFret = 0; maxFret = 12; }
+        else if (s.quizFretRange === '13-24') { minFret = 13; maxFret = 24; }
+        else { minFret = 0; maxFret = 24; }
 
-            if (s.quizFretRange === '1-12') {
-                s.targetFret = Math.floor(Math.random() * 13);
-            } else if (s.quizFretRange === '13-24') {
-                s.targetFret = 13 + Math.floor(Math.random() * 12);
-            } else {
-                s.targetFret = Math.floor(Math.random() * (FRET_COUNT + 1));
+        for (const string of stringsToTest) {
+            for (let fret = minFret; fret <= maxFret; fret++) {
+                const noteIndex = (TUNING[string] + fret) % 12;
+                if (state.hideSemitones && !NATURAL_INDICES.includes(noteIndex)) {
+                    continue;
+                }
+                if (s.noteFilter.length > 0 && !s.noteFilter.includes(noteIndex)) {
+                    continue;
+                }
+                possiblePositions.push({ string, fret, noteIndex });
             }
-            noteIndex = (TUNING[s.targetString] + s.targetFret) % 12;
-        } while (state.hideSemitones && !NATURAL_INDICES.includes(noteIndex))
-        
-        s.targetNoteIndex = noteIndex;
+        }
+
+        if (possiblePositions.length === 0) {
+            fretboardPositionHintEl.textContent = '条件に合う音が見つかりません';
+            fretboardContainer.innerHTML = ''; // Clear fretboard
+            return;
+        }
+
+        const randomPosition = possiblePositions[Math.floor(Math.random() * possiblePositions.length)];
+        s.targetString = randomPosition.string;
+        s.targetFret = randomPosition.fret;
+        s.targetNoteIndex = randomPosition.noteIndex;
 
         s.fretViewStart = s.targetFret > 12 ? 12 : 0;
         if (s.targetFret === 0) {
@@ -298,6 +301,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fretboardNextBtn.disabled = true;
         if (!s.hideFretboard) {
             drawFretboard();
+        } else {
+            fretboardContainer.innerHTML = '';
         }
         const midiNote = BASE_MIDI_NOTES[s.targetString] + s.targetFret;
         playTone(midiNote);
@@ -431,12 +436,58 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         generateQuestion();
     }
+
+    function updateNoteFilterBtnText() {
+        const filter = state.fretboard.noteFilter;
+        if (filter.length === 0 || filter.length === NATURAL_INDICES.length) {
+            noteFilterOpenBtn.textContent = '音名を絞って出題';
+            noteFilterOpenBtn.classList.remove('active-mode');
+        } else {
+            const selectedNotes = filter.map(index => NATURAL_NOTES[NATURAL_INDICES.indexOf(index)]).join(', ');
+            noteFilterOpenBtn.textContent = `絞り込み: ${selectedNotes}`;
+            noteFilterOpenBtn.classList.add('active-mode');
+        }
+    }
     
     // --- 初期化 ---
     function init() {
         document.body.addEventListener('click', initAudioAndLoadSounds, { once: true });
         createAnswerButtons();
         
+        // --- Note Filter Modal ---
+        NATURAL_INDICES.forEach(noteIndex => {
+            const note = NOTES_ENHARMONIC[noteIndex].split('(')[0];
+            const button = document.createElement('button');
+            button.dataset.noteIndex = noteIndex;
+            button.textContent = note;
+            button.classList.add('btn', 'option-btn');
+            noteFilterButtons.appendChild(button);
+        });
+
+        noteFilterOpenBtn.addEventListener('click', () => noteFilterModal.classList.replace('hidden', 'flex'));
+        noteFilterCloseBtn.addEventListener('click', () => {
+            noteFilterModal.classList.replace('flex', 'hidden');
+            generateQuestion();
+        });
+        noteFilterClearBtn.addEventListener('click', () => {
+            state.fretboard.noteFilter = [];
+            noteFilterButtons.querySelectorAll('button').forEach(btn => btn.classList.remove('active-mode'));
+            updateNoteFilterBtnText();
+        });
+        noteFilterButtons.addEventListener('click', (e) => {
+            const target = e.target.closest('button');
+            if (!target) return;
+            const noteIndex = parseInt(target.dataset.noteIndex);
+            target.classList.toggle('active-mode');
+            if (state.fretboard.noteFilter.includes(noteIndex)) {
+                state.fretboard.noteFilter = state.fretboard.noteFilter.filter(i => i !== noteIndex);
+            } else {
+                state.fretboard.noteFilter.push(noteIndex);
+            }
+            updateNoteFilterBtnText();
+        });
+
+        // --- Other Event Listeners ---
         fretboardNextBtn.addEventListener('click', generateQuestion);
         solfegeNextBtn.addEventListener('click', generateQuestion);
         tabFretboard.addEventListener('click', (e) => { e.preventDefault(); switchTab('fretboard'); });
@@ -453,9 +504,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         solfegeQuestionEl.addEventListener('click', () => {
             const { targetNoteIndex } = state.solfege;
-            if (targetNoteIndex !== -1) {
-                playTone(60 + targetNoteIndex);
-            }
+            if (targetNoteIndex !== -1) playTone(60 + targetNoteIndex);
         });
 
         stringModeSelector.addEventListener('click', (e) => {
@@ -482,12 +531,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (target.id === 'toggle-open-strings-btn') {
                 state.showOpenStrings = !state.showOpenStrings;
                 target.classList.toggle('active-mode', state.showOpenStrings);
-                drawFretboard();
+                if(!state.fretboard.hideFretboard) drawFretboard();
             } else if (target.id === 'toggle-fretboard-visibility-btn') {
                 state.fretboard.hideFretboard = !state.fretboard.hideFretboard;
                 target.classList.toggle('active-mode', state.fretboard.hideFretboard);
                 fretboardContainer.parentElement.classList.toggle('hidden', state.fretboard.hideFretboard);
                 target.textContent = state.fretboard.hideFretboard ? '指板を表示' : '指板を隠す';
+                if (!state.fretboard.hideFretboard) {
+                    drawFretboard();
+                }
             }
         });
 
@@ -504,7 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 updateAnswerButtons();
                 if (state.currentQuiz === 'fretboard') {
-                    drawFretboard(); 
+                    if (!state.fretboard.hideFretboard) drawFretboard(); 
                 } else {
                     generateQuestion();
                 }
