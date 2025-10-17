@@ -45,7 +45,7 @@
                 </div>
                 
                 <!-- オプション -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 my-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-6">
                     <div class="text-center">
                         <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">練習する弦を選択</h3>
                         <div id="string-mode-selector" class="flex justify-center flex-wrap gap-2">
@@ -56,11 +56,16 @@
                         </div>
                     </div>
                     <div class="text-center">
-                        <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">出題範囲</h3>
-                        <div id="fretboard-quiz-range-selector" class="flex justify-center flex-wrap gap-2">
-                            <button data-quiz-range="1-12" class="btn option-btn active-mode">1-12 F</button>
-                            <button data-quiz-range="13-24" class="btn option-btn">13-24 F</button>
-                            <button data-quiz-range="1-24" class="btn option-btn">1-24 F</button>
+                        <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">出題オプション</h3>
+                        <div class="flex flex-col items-center justify-center gap-2">
+                             <div id="fretboard-quiz-range-selector" class="flex justify-center flex-wrap gap-2">
+                                <button data-quiz-range="1-12" class="btn option-btn active-mode">1-12 F</button>
+                                <button data-quiz-range="13-24" class="btn option-btn">13-24 F</button>
+                                <button data-quiz-range="1-24" class="btn option-btn">1-24 F</button>
+                            </div>
+                            <div id="note-filter-selector" class="mt-2">
+                                 <button id="note-filter-open-btn" class="btn option-btn">音名を絞って出題</button>
+                            </div>
                         </div>
                     </div>
                      <div class="text-center">
@@ -128,6 +133,21 @@
             </div>
         </main>
     </div>
+
+    <!-- Note Filter Modal -->
+    <div id="note-filter-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 class="text-xl font-bold mb-4">出題する音名を選択 (複数可)</h3>
+            <div id="note-filter-buttons" class="grid grid-cols-4 gap-2">
+                <!-- JS will generate C,D,E... buttons here -->
+            </div>
+            <div class="mt-6 flex justify-between">
+                 <button id="note-filter-clear-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-md">すべて選択</button>
+                <button id="note-filter-close-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md">完了</button>
+            </div>
+        </div>
+    </div>
+
     <script src="./script.js"></script>
 </body>
 </html>
