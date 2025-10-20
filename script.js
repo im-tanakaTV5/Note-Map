@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
             targetString: -1,
             targetFret: -1,
             targetNoteIndex: -1,
-            trainingMode: 'all',
+            selectedStrings: [], // Changed from trainingMode
             quizFretRange: '1-12',
             fretViewStart: 0,
             hideFretboard: false,
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 指板描画 ---
     function drawFretboard() {
-        const { fretViewStart, trainingMode, targetString, targetFret } = state.fretboard;
+        const { fretViewStart, selectedStrings, targetString, targetFret } = state.fretboard;
         const svgNS = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(svgNS, "svg");
         const fretboardHeight = STRING_COUNT * FRET_HEIGHT;
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const y = (i + 0.5) * FRET_HEIGHT;
             const stringLine = document.createElementNS(svgNS, 'line');
             const stringIndex = i;
-            const isStringActive = trainingMode === 'all' || (trainingMode - 1) === stringIndex;
+            const isStringActive = selectedStrings.length === 0 || selectedStrings.includes(stringIndex + 1);
             stringLine.setAttribute('x1', FRET_WIDTH/2); stringLine.setAttribute('y1', y);
             stringLine.setAttribute('x2', totalWidth - FRET_WIDTH/2); stringLine.setAttribute('y2', y);
             stringLine.setAttribute('stroke', isStringActive ? '#6b7280' : '#d1d5db');
@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function generateFretboardQuestion() {
         const s = state.fretboard;
         let possiblePositions = [];
-        const stringsToTest = s.trainingMode === 'all' ? [0, 1, 2, 3, 4, 5] : [s.trainingMode - 1];
+        const stringsToTest = s.selectedStrings.length > 0 ? s.selectedStrings.map(str => str - 1) : [0, 1, 2, 3, 4, 5];
         let minFret = 0, maxFret = 0;
 
         if (s.quizFretRange === '1-12') { minFret = 0; maxFret = 12; }
@@ -508,12 +508,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         stringModeSelector.addEventListener('click', (e) => {
-            if (e.target.matches('.option-btn')) {
-                stringModeSelector.querySelector('.active-mode').classList.remove('active-mode');
-                e.target.classList.add('active-mode');
-                state.fretboard.trainingMode = e.target.dataset.mode === 'all' ? 'all' : parseInt(e.target.dataset.mode, 10);
-                generateQuestion();
+            const target = e.target.closest('.option-btn');
+            if (!target) return;
+            const mode = target.dataset.mode;
+            
+            if (mode === 'all') {
+                state.fretboard.selectedStrings = [];
+                stringModeSelector.querySelectorAll('.active-mode').forEach(btn => btn.classList.remove('active-mode'));
+                target.classList.add('active-mode');
+            } else {
+                stringModeSelector.querySelector('[data-mode="all"]').classList.remove('active-mode');
+                target.classList.toggle('active-mode');
+                const stringNum = parseInt(mode, 10);
+                if (state.fretboard.selectedStrings.includes(stringNum)) {
+                    state.fretboard.selectedStrings = state.fretboard.selectedStrings.filter(s => s !== stringNum);
+                } else {
+                    state.fretboard.selectedStrings.push(stringNum);
+                }
             }
+            generateQuestion();
         });
 
         fretboardQuizRangeSelector.addEventListener('click', (e) => {
