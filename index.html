@@ -4,29 +4,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ギター理論学習アプリ</title>
+    <title>ギター理論学習アプリ｜指板クイズ・スケール判定・コード作成</title>
+    <meta name="description" content="ギターの指板音名クイズ、スケール確認・判定、コード作成などギター音楽理論を実践的に学べる無料Webアプリです。初心者から上級者まで対応。">
+    <!-- OGP -->
+    <meta property="og:title" content="ギター理論学習アプリ｜指板クイズ・スケール判定・コード作成">
+    <meta property="og:description" content="ギターの指板音名クイズ、スケール確認・判定、コード作成などギター音楽理論を実践的に学べる無料Webアプリです。">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="ja_JP">
+    <!-- <meta property="og:url" content="https://YOUR_DOMAIN/"> -->
+    <!-- <meta property="og:image" content="https://YOUR_DOMAIN/ogp.png"> -->
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="ギター理論学習アプリ">
+    <meta name="twitter:description" content="指板クイズやスケール判定でギター音楽理論を楽しく学べるWebアプリ">
+    <!-- Favicon -->
+    <!-- <link rel="icon" href="./favicon.ico" type="image/x-icon"> -->
+    <!-- <link rel="apple-touch-icon" href="./apple-touch-icon.png"> -->
+    <!-- Canonical -->
+    <!-- <link rel="canonical" href="https://YOUR_DOMAIN/"> -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=8">
+    <link rel="stylesheet" href="style.css?v=15">
 </head>
 
 <body class="bg-gray-100 text-gray-800 flex flex-col items-center min-h-screen p-4">
 
-    <div class="w-full max-w-7xl mx-auto">
-        <header class="text-center mb-4">
+    <div class="w-full max-w-[1920px] w-[96%] mx-auto">
+        <header class="text-center mb-4 mt-6">
             <h1 class="text-3xl font-bold text-gray-800">ギター理論学習アプリ</h1>
         </header>
 
         <!-- タブナビゲーション -->
         <div class="mb-6 border-b border-gray-200">
-            <nav class="flex justify-center -mb-px" aria-label="Tabs">
-                <a href="#" id="tab-fretboard" class="tab tab-active">指板クイズ</a>
-                <a href="#" id="tab-solfege" class="tab">音名変換クイズ</a>
-                <a href="#" id="tab-key-viewer" class="tab">キー確認</a>
+            <nav class="flex justify-center -mb-px flex-wrap" aria-label="Tabs">
+                <button id="tab-fretboard" class="tab tab-active" role="tab" aria-selected="true">指板クイズ</button>
+                <button id="tab-solfege" class="tab" role="tab" aria-selected="false">音名変換クイズ</button>
+                <button id="tab-key-viewer" class="tab" role="tab" aria-selected="false">スケール確認</button>
+                <button id="tab-scale-finder" class="tab" role="tab" aria-selected="false">スケール判定</button>
+                <button id="tab-chord-builder" class="tab" role="tab" aria-selected="false">コード作成</button>
             </nav>
         </div>
 
@@ -144,7 +163,7 @@
             <!-- ===== キー確認（指板マップ） ===== -->
             <div id="key-viewer-container" class="hidden">
                 <div class="mb-6 bg-gray-50 p-4 rounded-md border border-gray-200">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <!-- ルート音選択 -->
                         <div class="text-center">
                             <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">ルート音</h3>
@@ -162,6 +181,15 @@
                                 <button data-scale="minor_pentatonic" class="btn option-btn">マイナーペンタ</button>
                             </div>
                         </div>
+                        <!-- 表示オプション -->
+                        <div class="text-center">
+                            <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">表示オプション</h3>
+                            <div id="key-viewer-display-options-selector" class="flex flex-col items-center justify-center gap-2">
+                                <div class="flex justify-center flex-wrap gap-2">
+                                    <button id="toggle-key-viewer-degree-btn" class="btn option-btn">度数表示</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -175,13 +203,133 @@
                     <div id="key-viewer-fretboard-container" class="relative cursor-pointer"></div>
                 </div>
 
-                <div class="text-center mt-4">
+                <div class="text-center mt-4 mb-4">
                     <button id="key-viewer-play-scale-btn"
-                        class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200">
-                        スケールを再生する
+                        class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition duration-200 shadow-sm mb-6">
+                        スケールを単純再生する
                     </button>
+
+                    <!-- フレーズジェネレーター・パネル -->
+                    <div class="bg-indigo-50 p-5 rounded-lg border border-indigo-200 shadow-inner max-w-3xl mx-auto">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex justify-center items-center">
+                            <svg class="w-6 h-6 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>
+                            実践フレーズ提案
+                        </h3>
+                        <div class="flex flex-col sm:flex-row justify-center items-center gap-4">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-gray-600 font-semibold text-sm">アプローチ:</span>
+                                <select id="phrase-approach-selector" class="border border-gray-300 rounded-md px-3 py-2 text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white">
+                                    <option value="thirds">3度進行 (サード・シーケンス)</option>
+                                    <option value="four_notes">4音フレーズ (速弾き風)</option>
+                                    <option value="diagonal">横移動 (ダイアゴナル)</option>
+                                    <option value="chord_tones">コードトーン・アプローチ</option>
+                                </select>
+                            </div>
+                            <button id="generate-phrase-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-md transition duration-200 flex items-center shadow-md">
+                                <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                                フレーズ生成＆再生
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <!-- ===== スケール判定（ファインダー） ===== -->
+            <div id="scale-finder-container" class="hidden">
+                <div class="mb-6 flex flex-col sm:flex-row items-center justify-between bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-center space-x-4 mb-3 sm:mb-0">
+                        <h3 class="text-sm font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full">選択中の音</h3>
+                        <div id="scale-finder-selected-notes" class="text-lg font-bold text-indigo-700">
+                            (なし)
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button id="scale-finder-undo-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-1.5 px-4 rounded-md transition duration-200 shadow-sm text-sm border border-gray-300 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                            一つ戻る
+                        </button>
+                        <button id="scale-finder-clear-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-1.5 px-4 rounded-md transition duration-200 shadow-sm text-sm border border-gray-300 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            クリア
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 指板エリア -->
+                <div class="w-full overflow-x-auto rounded-lg border border-gray-300 mb-6 bg-white relative">
+                    <div id="scale-finder-fretboard-container" class="relative cursor-pointer"></div>
+                </div>
+
+                <!-- 判定結果一覧 -->
+                <div class="bg-white p-4 rounded-md border border-gray-200">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800 text-center border-b pb-2">判定結果（候補スケール）</h3>
+                    <p id="scale-finder-empty-message" class="text-gray-500 text-center py-4">
+                        指板をクリックして音を選択してください
+                    </p>
+                    <div id="scale-finder-results-list" class="flex flex-col gap-3 hidden">
+                        <!-- JSで動的に追加 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== コード作成（エクスプローラー） ===== -->
+            <div id="chord-builder-container" class="hidden">
+                <div class="mb-6 flex flex-col sm:flex-row items-center justify-between bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-center space-x-4 mb-3 sm:mb-0">
+                        <div class="text-center sm:text-left flex items-center space-x-2">
+                            <h3 class="text-sm font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full whitespace-nowrap">キー選択</h3>
+                            <select id="chord-builder-key-selector" class="border border-gray-300 rounded-md px-3 py-1 text-gray-700 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white">
+                                <option value="0">C</option>
+                                <option value="1">C# / Db</option>
+                                <option value="2">D</option>
+                                <option value="3">D# / Eb</option>
+                                <option value="4">E</option>
+                                <option value="5">F</option>
+                                <option value="6">F# / Gb</option>
+                                <option value="7">G</option>
+                                <option value="8">G# / Ab</option>
+                                <option value="9">A</option>
+                                <option value="10">A# / Bb</option>
+                                <option value="11">B</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4 mb-3 sm:mb-0">
+                        <h3 class="text-sm font-bold text-gray-500 bg-gray-100 px-3 py-1 rounded-full hidden sm:block">選択中の構成音</h3>
+                        <div id="chord-builder-selected-notes" class="text-base sm:text-lg font-bold text-indigo-700 flex flex-wrap gap-1">
+                            (なし)
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-2 sm:mt-0">
+                        <button id="chord-builder-undo-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-1.5 px-4 rounded-md transition duration-200 shadow-sm text-sm border border-gray-300 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+                            一つ戻る
+                        </button>
+                        <button id="chord-builder-clear-btn" class="bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold py-1.5 px-4 rounded-md transition duration-200 shadow-sm text-sm border border-gray-300 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            クリア
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 指板エリア -->
+                <div class="w-full overflow-x-auto rounded-lg border border-gray-300 mb-6 bg-white relative">
+                    <div id="chord-builder-fretboard-container" class="relative cursor-pointer"></div>
+                </div>
+
+                <!-- 判定結果一覧 -->
+                <div class="bg-white p-4 rounded-md border border-gray-200">
+                    <h3 class="text-xl font-bold mb-4 text-gray-800 text-center border-b pb-2">コード提案リスト</h3>
+                    <p id="chord-builder-empty-message" class="text-gray-500 text-center py-4">
+                        指板をクリックして音を選択してください。<br>
+                        <span class="text-sm mt-2 inline-block">※音の一部（例：3rdと5th）だけでも候補が表示されます</span>
+                    </p>
+                    <div id="chord-builder-results-list" class="flex flex-col gap-3 hidden">
+                        <!-- JSで動的に追加 -->
+                    </div>
+                </div>
+            </div>
+
             <!-- 共通オプション -->
             <div id="common-options-area" class="text-center mt-8 pt-6 border-t">
                 <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">共通オプション</h3>
@@ -216,7 +364,7 @@
         class="fretboard-loupe hidden pointer-events-none fixed bg-white overflow-hidden rounded-xl border-[3px] border-gray-400 shadow-2xl z-[9999]">
     </div>
 
-    <script src="./script.js?v=8"></script>
+    <script src="./script.js?v=15"></script>
 </body>
 
 </html>
