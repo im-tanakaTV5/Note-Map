@@ -14,12 +14,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const KEY_VIEWER_FRET_COUNT = 24; // キー確認用
     const FRET_NUM_AREA_HEIGHT = 30;
 
-    // --- スケール定義 (ルート音からの半音のインターバル) ---
     const SCALES = {
         major: { name: 'メジャー', intervals: [0, 2, 4, 5, 7, 9, 11] },
         minor: { name: 'ナチュラルマイナー', intervals: [0, 2, 3, 5, 7, 8, 10] },
         major_pentatonic: { name: 'メジャーペンタトニック', intervals: [0, 2, 4, 7, 9] },
-        minor_pentatonic: { name: 'マイナーペンタトニック', intervals: [0, 3, 5, 7, 10] }
+        minor_pentatonic: { name: 'マイナーペンタトニック', intervals: [0, 3, 5, 7, 10] },
+        dorian: { name: 'ドリアン', intervals: [0, 2, 3, 5, 7, 9, 10] },
+        phrygian: { name: 'フリジアン', intervals: [0, 1, 3, 5, 7, 8, 10] },
+        lydian: { name: 'リディアン', intervals: [0, 2, 4, 6, 7, 9, 11] },
+        mixolydian: { name: 'ミクソリディアン', intervals: [0, 2, 4, 5, 7, 9, 10] },
+        locrian: { name: 'ロクリアン', intervals: [0, 1, 3, 5, 6, 8, 10] },
+        harmonic_minor: { name: 'ハーモニックマイナー', intervals: [0, 2, 3, 5, 7, 8, 11] },
+        melodic_minor: { name: 'メロディックマイナー', intervals: [0, 2, 3, 5, 7, 9, 11] }
+    };
+
+    const CHORDS = {
+        major: { name: 'メジャー (Major)', intervals: [0, 4, 7], weight: 100 },
+        minor: { name: 'マイナー (m)', intervals: [0, 3, 7], weight: 100 },
+        diminished: { name: 'ディミニッシュ (dim)', intervals: [0, 3, 6], weight: 70 },
+        augmented: { name: 'オーギュメント (aug)', intervals: [0, 4, 8], weight: 70 },
+        sus4: { name: 'sus4', intervals: [0, 5, 7], weight: 80 },
+        sus2: { name: 'sus2', intervals: [0, 2, 7], weight: 80 },
+        major7: { name: 'メジャーセブンス (Maj7)', intervals: [0, 4, 7, 11], weight: 90 },
+        minor7: { name: 'マイナーセブンス (m7)', intervals: [0, 3, 7, 10], weight: 90 },
+        dominant7: { name: 'セブンス (7)', intervals: [0, 4, 7, 10], weight: 90 },
+        minor7b5: { name: 'マイナーセブンス・フラットファイブ (m7b5)', intervals: [0, 3, 6, 10], weight: 85 },
+        diminished7: { name: 'ディミニッシュセブンス (dim7)', intervals: [0, 3, 6, 9], weight: 85 },
+        minorMaj7: { name: 'マイナーメジャーセブンス (mM7)', intervals: [0, 3, 7, 11], weight: 80 },
+        add9: { name: 'add9', intervals: [0, 4, 7, 14], weight: 80 },
+        major9: { name: 'Maj9', intervals: [0, 4, 7, 11, 14], weight: 75 },
+        minor9: { name: 'm9', intervals: [0, 3, 7, 10, 14], weight: 75 },
+        dominant9: { name: '9', intervals: [0, 4, 7, 10, 14], weight: 75 },
+        dominant7b9: { name: '7(b9)', intervals: [0, 4, 7, 10, 13], weight: 70 },
+        dominant7sharp9: { name: '7(#9)', intervals: [0, 4, 7, 10, 15], weight: 70 },
+        dominant13: { name: '13', intervals: [0, 4, 7, 10, 14, 21], weight: 65 },
+        minor11: { name: 'm11', intervals: [0, 3, 7, 10, 14, 17], weight: 65 },
+        six: { name: '6', intervals: [0, 4, 7, 9], weight: 85 },
+        minor6: { name: 'm6', intervals: [0, 3, 7, 9], weight: 85 }
     };
 
     // --- 音声関連の定数 ---
@@ -58,6 +89,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const solfegeQuestionEl = document.getElementById('solfege-question');
     const solfegeQuestionTextEl = solfegeQuizContainer.querySelector('p');
     const commonOptionsSelector = document.getElementById('common-options-selector');
+    
+    // Scale Finder Elements
+    const tabScaleFinder = document.getElementById('tab-scale-finder');
+    const scaleFinderContainer = document.getElementById('scale-finder-container');
+    const scaleFinderFretboardContainer = document.getElementById('scale-finder-fretboard-container');
+    const scaleFinderSelectedNotesEl = document.getElementById('scale-finder-selected-notes');
+    const scaleFinderClearBtn = document.getElementById('scale-finder-clear-btn');
+    const scaleFinderUndoBtn = document.getElementById('scale-finder-undo-btn');
+    const scaleFinderResultsList = document.getElementById('scale-finder-results-list');
+    const scaleFinderEmptyMessage = document.getElementById('scale-finder-empty-message');
+
+    // Chord Builder Elements
+    const tabChordBuilder = document.getElementById('tab-chord-builder');
+    const chordBuilderContainer = document.getElementById('chord-builder-container');
+    const chordBuilderKeySelector = document.getElementById('chord-builder-key-selector');
+    const chordBuilderFretboardContainer = document.getElementById('chord-builder-fretboard-container');
+    const chordBuilderSelectedNotesEl = document.getElementById('chord-builder-selected-notes');
+    const chordBuilderClearBtn = document.getElementById('chord-builder-clear-btn');
+    const chordBuilderUndoBtn = document.getElementById('chord-builder-undo-btn');
+    const chordBuilderResultsList = document.getElementById('chord-builder-results-list');
+    const chordBuilderEmptyMessage = document.getElementById('chord-builder-empty-message');
 
     // Key Viewer DOM elements
     const keyViewerRootSelector = document.getElementById('key-viewer-root-selector');
@@ -73,6 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const noteFilterButtons = document.getElementById('note-filter-buttons');
     const noteFilterCloseBtn = document.getElementById('note-filter-close-btn');
     const noteFilterClearBtn = document.getElementById('note-filter-clear-btn');
+    const toggleKeyViewerDegreeBtn = document.getElementById('toggle-key-viewer-degree-btn'); // 追加
 
 
     // --- アプリケーションの状態 ---
@@ -104,7 +157,18 @@ document.addEventListener('DOMContentLoaded', () => {
         keyViewer: {
             rootNoteIndex: 0, // 0 = C
             scaleType: 'major',
-            isPlaying: false
+            isPlaying: false,
+            showDegree: false
+        },
+
+        scaleFinder: {
+            selectedPositions: [] // { string, fret, noteIndex } の配列
+        },
+
+        chordBuilder: {
+            selectedKeyIndex: 0, // 0 = C
+            selectedPositions: [], // { string, fret, noteIndex, midiNote } の配列
+            previewChord: null // { rootIndex, type } または null
         }
     };
 
@@ -165,6 +229,990 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // --- 度数計算ヘルパー ---
+    function getDegreeString(interval) {
+        switch (interval) {
+            case 0: return 'R';
+            case 1: return 'm2';
+            case 2: return 'M2';
+            case 3: return 'm3';
+            case 4: return 'M3';
+            case 5: return 'P4';
+            case 6: return 'dim5';
+            case 7: return 'P5';
+            case 8: return 'm6';
+            case 9: return 'M6';
+            case 10: return 'm7';
+            case 11: return 'M7';
+            default: return '';
+        }
+    }
+
+    function getDegreeColor(interval) {
+        if (interval === 0) return '#ef4444'; // Root: 赤
+        if ([3, 4, 6, 7, 10, 11].includes(interval)) return '#f59e0b'; // 3rd, 5th, 7th (dim5含): オレンジ
+        return '#60a5fa'; // その他(テンション等): 薄青
+    }
+
+    // --- フレーズ生成・再生エンジン ---
+    function getPossiblePositionsForMidi(midiNote) {
+        const positions = [];
+        for (let s = 0; s < 6; s++) {
+            const fret = midiNote - BASE_MIDI_NOTES[s];
+            if (fret >= 0 && fret <= KEY_VIEWER_FRET_COUNT) {
+                positions.push({ string: s, fret: fret, midiNote: midiNote });
+            }
+        }
+        return positions;
+    }
+
+    function solveFingeringPath(midiNotes, baseFret, biasDiagonal = false) {
+        if (midiNotes.length === 0) return [];
+        let path = [];
+        let currentString = -1;
+        let currentFret = baseFret;
+
+        for (const midi of midiNotes) {
+            const possibilities = getPossiblePositionsForMidi(midi);
+            if (possibilities.length === 0) continue;
+            
+            let bestPos = null;
+            let minCost = Infinity;
+
+            for (const pos of possibilities) {
+                if (currentString === -1) {
+                    const cost = Math.abs(pos.fret - currentFret);
+                    if (cost < minCost) { minCost = cost; bestPos = pos; }
+                    continue;
+                }
+
+                const fretDiffOrigin = pos.fret - currentFret; 
+                const fretDiff = Math.abs(fretDiffOrigin);
+                const stringDiff = Math.abs(pos.string - currentString);
+                
+                let cost = fretDiff * 2 + stringDiff * 1.5;
+                
+                if (biasDiagonal) {
+                    if (fretDiffOrigin > 0 && fretDiffOrigin <= 3) cost -= 2;
+                } else {
+                    if (fretDiff > 4) cost += 10; // ストレッチのペナルティ
+                }
+
+                if (cost < minCost) {
+                    minCost = cost;
+                    bestPos = pos;
+                }
+            }
+
+            if (bestPos) {
+                path.push(bestPos);
+                currentString = bestPos.string;
+                currentFret = bestPos.fret;
+            }
+        }
+        return path;
+    }
+
+    function getScaleMidiNotes(rootMidi, scaleDef, octaves) {
+        let notes = [];
+        for (let oct = 0; oct < octaves; oct++) {
+            for (const interval of scaleDef.intervals) {
+                notes.push(rootMidi + interval + oct * 12);
+            }
+        }
+        notes.push(rootMidi + octaves * 12);
+        return notes;
+    }
+
+    function generatePhraseData(approachType, rootNoteIndex, scaleDef) {
+        let startMidi = 40;
+        while (startMidi % 12 !== rootNoteIndex) startMidi++;
+        const scaleMidiNotes = getScaleMidiNotes(startMidi, scaleDef, 2);
+        let phraseMidi = [];
+        let biasDiagonal = false;
+
+        if (approachType === 'thirds') {
+            for (let i = 0; i < scaleMidiNotes.length - 2; i++) {
+                phraseMidi.push(scaleMidiNotes[i]);
+                phraseMidi.push(scaleMidiNotes[i + 2]);
+            }
+            phraseMidi.push(scaleMidiNotes[0]);
+        } else if (approachType === 'four_notes') {
+            for (let i = 0; i < scaleMidiNotes.length - 3; i++) {
+                phraseMidi.push(scaleMidiNotes[i]);
+                phraseMidi.push(scaleMidiNotes[i+1]);
+                phraseMidi.push(scaleMidiNotes[i+2]);
+                phraseMidi.push(scaleMidiNotes[i+3]);
+            }
+            phraseMidi.push(scaleMidiNotes[scaleMidiNotes.length - 1]);
+        } else if (approachType === 'diagonal') {
+            biasDiagonal = true;
+            for (let i = 0; i < scaleMidiNotes.length - 1; i++) {
+                phraseMidi.push(scaleMidiNotes[i]);
+                if(i > 0 && i % 3 === 0 && i < scaleMidiNotes.length - 2) {
+                     phraseMidi.push(scaleMidiNotes[i-1]);
+                }
+            }
+            phraseMidi.push(scaleMidiNotes[scaleMidiNotes.length - 1]);
+        } else if (approachType === 'chord_tones') {
+            const targetIndices = [0, 2, 4, 6]; 
+            for (let oct = 0; oct < 2; oct++) {
+                for(let ti of targetIndices) {
+                     if(ti < scaleDef.intervals.length) {
+                         const targetMidi = startMidi + oct*12 + scaleDef.intervals[ti];
+                         let approachIdx = ti - 1;
+                         if (approachIdx < 0) approachIdx = scaleDef.intervals.length - 1;
+                         const approachMidi = startMidi + (ti===0 ? (oct-1)*12 : oct*12) + scaleDef.intervals[approachIdx];
+                         phraseMidi.push(approachMidi);
+                         phraseMidi.push(targetMidi);
+                     }
+                }
+            }
+            phraseMidi.push(startMidi + 24);
+        } else {
+             phraseMidi = [...scaleMidiNotes];
+        }
+
+        const startPositions = getPossiblePositionsForMidi(startMidi);
+        const baseFret = startPositions.length > 0 ? startPositions[0].fret : 5;
+        return solveFingeringPath(phraseMidi, baseFret, biasDiagonal);
+    }
+
+    function clearPhraseHighlights() {
+        document.querySelectorAll('.playing-highlight').forEach(el => el.classList.remove('playing-highlight'));
+    }
+
+    async function playPhrase(phraseData) {
+        if (state.keyViewer.isPlaying || !state.isSoundEnabled || !audioContext) return;
+        state.keyViewer.isPlaying = true;
+        
+        const btn = document.getElementById('generate-phrase-btn');
+        const scaleBtn = document.getElementById('key-viewer-play-scale-btn');
+        if(btn) { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); }
+        if(scaleBtn) { scaleBtn.disabled = true; scaleBtn.classList.add('opacity-50', 'cursor-not-allowed'); }
+
+        clearPhraseHighlights();
+
+        const bpm = 120;
+        const noteDurationMs = (60 / bpm) * 1000 / 2; // 八分音符相当
+
+        for (const note of phraseData) {
+            if (!state.keyViewer.isPlaying) break;
+            
+            const marker = document.querySelector(`.scale-marker[data-string="${note.string}"][data-fret="${note.fret}"]`);
+            if (marker) {
+                marker.classList.add('playing-highlight');
+                // 次の音が鳴る直前にハイライトを少し消す
+                setTimeout(() => marker.classList.remove('playing-highlight'), noteDurationMs * 0.9);
+            }
+            
+            playTone(note.midiNote);
+            await new Promise(resolve => setTimeout(resolve, noteDurationMs));
+        }
+
+        state.keyViewer.isPlaying = false;
+        if(btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); }
+        if(scaleBtn) { scaleBtn.disabled = false; scaleBtn.classList.remove('opacity-50', 'cursor-not-allowed'); }
+    }
+
+    // --- スケールファインダー（判定）エンジン ---
+    function findMatchingScales() {
+        const validPositions = state.scaleFinder.selectedPositions.filter(p => !p.isUncertain);
+        const uniqueNoteIndicesArr = Array.from(new Set(validPositions.map(p => p.noteIndex)));
+        
+        if (validPositions.length === 0) return [];
+
+        const rawResults = [];
+        
+        for (let rootIndex = 0; rootIndex < 12; rootIndex++) {
+            for (const scaleType in SCALES) {
+                const scaleDef = SCALES[scaleType];
+                const scalePitchClasses = scaleDef.intervals.map(inter => (rootIndex + inter) % 12);
+                
+                let score = 0;
+                let matchCount = 0;
+                const hitNoteIndices = new Set();
+                
+                for (let i = 0; i < validPositions.length; i++) {
+                    const pos = validPositions[i];
+                    if (scalePitchClasses.includes(pos.noteIndex)) {
+                        let pts = 1;
+                        if (i === validPositions.length - 1) pts = 3;
+                        else if (i === 0 && validPositions.length > 1) pts = 2;
+                        
+                        score += pts;
+                        hitNoteIndices.add(pos.noteIndex);
+                    }
+                }
+                matchCount = hitNoteIndices.size;
+
+                if (score > 0) {
+                    rawResults.push({
+                        rootIndex: rootIndex,
+                        scaleType: scaleType,
+                        matchCount: matchCount,
+                        score: score,
+                        totalScaleNotes: scalePitchClasses.length,
+                        totalSelectedNotes: uniqueNoteIndicesArr.length,
+                        scalePitchClasses: scalePitchClasses
+                    });
+                }
+            }
+        }
+
+        const groups = {};
+        for (const res of rawResults) {
+            const key = res.scalePitchClasses.slice().sort((a,b)=>a-b).join(',');
+            if (!groups[key]) {
+                groups[key] = {
+                    pitchClassesKey: key,
+                    scales: [],
+                    matchCount: res.matchCount,
+                    score: res.score,
+                    totalScaleNotes: res.totalScaleNotes,
+                    totalSelectedNotes: res.totalSelectedNotes
+                };
+            }
+            groups[key].scales.push(res);
+        }
+
+        const groupedResults = [];
+        const noteArray = state.noteNameSystem === 'english' ? NOTES_ENHARMONIC : NOTES_SOLFEGE_ENHARMONIC;
+
+        for (const key in groups) {
+            const group = groups[key];
+            const scales = group.scales;
+
+            let majorScale = scales.find(s => s.scaleType === 'major');
+            let minorScale = scales.find(s => s.scaleType === 'minor');
+            let majorPenta = scales.find(s => s.scaleType === 'major_pentatonic');
+            let minorPenta = scales.find(s => s.scaleType === 'minor_pentatonic');
+
+            let mainTitle = "";
+            let primaryScale = null;
+            let subModes = [];
+
+            if (majorScale || minorScale) {
+                const parts = [];
+                if (majorScale) {
+                    parts.push(`${noteArray[majorScale.rootIndex].replace(/\(.+\)/, '')} ${SCALES['major'].name}`);
+                    primaryScale = majorScale;
+                }
+                if (minorScale) {
+                    parts.push(`${noteArray[minorScale.rootIndex].replace(/\(.+\)/, '')} ${SCALES['minor'].name}`);
+                    if (!primaryScale) primaryScale = minorScale;
+                }
+                mainTitle = parts.join(' / ');
+                subModes = scales.filter(s => s !== majorScale && s !== minorScale);
+            } else if (majorPenta || minorPenta) {
+                const parts = [];
+                if (majorPenta) {
+                    parts.push(`${noteArray[majorPenta.rootIndex].replace(/\(.+\)/, '')} ${SCALES['major_pentatonic'].name}`);
+                    primaryScale = majorPenta;
+                }
+                if (minorPenta) {
+                    parts.push(`${noteArray[minorPenta.rootIndex].replace(/\(.+\)/, '')} ${SCALES['minor_pentatonic'].name}`);
+                    if (!primaryScale) primaryScale = minorPenta;
+                }
+                mainTitle = parts.join(' / ');
+                subModes = scales.filter(s => s !== majorPenta && s !== minorPenta);
+            } else {
+                primaryScale = scales[0];
+                mainTitle = `${noteArray[primaryScale.rootIndex].replace(/\(.+\)/, '')} ${SCALES[primaryScale.scaleType].name}`;
+                subModes = scales.slice(1);
+            }
+
+            const subModesText = subModes.length > 0 
+                ? "関連モード: " + subModes.map(s => `${noteArray[s.rootIndex].replace(/\(.+\)/, '')} ${SCALES[s.scaleType].name}`).join(', ')
+                : "";
+
+            groupedResults.push({
+                mainTitle: mainTitle,
+                primaryScale: primaryScale,
+                subModesText: subModesText,
+                matchCount: group.matchCount,
+                score: group.score,
+                totalScaleNotes: group.totalScaleNotes,
+                totalSelectedNotes: group.totalSelectedNotes
+            });
+        }
+
+        groupedResults.sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            if (b.matchCount !== a.matchCount) return b.matchCount - a.matchCount;
+            return a.totalScaleNotes - b.totalScaleNotes;
+        });
+
+        return groupedResults;
+    }
+
+    function updateScaleFinder() {
+        const selected = state.scaleFinder.selectedPositions;
+        const noteArray = state.noteNameSystem === 'english' ? NOTES_ENHARMONIC : NOTES_SOLFEGE_ENHARMONIC;
+        
+        if (selected.length === 0) {
+            scaleFinderSelectedNotesEl.textContent = '(なし)';
+            scaleFinderResultsList.innerHTML = '';
+            scaleFinderEmptyMessage.classList.remove('hidden');
+            scaleFinderResultsList.classList.add('hidden');
+            return;
+        }
+
+        const validSelected = selected.filter(p => !p.isUncertain);
+        const maxPossibleScore = validSelected.length > 0 ? (3 + (validSelected.length > 1 ? 2 : 0) + Math.max(0, validSelected.length - 2)) : 0;
+
+        const sequenceStr = selected.map(p => {
+             let name = noteArray[p.noteIndex].replace(/\(.+\)/, '');
+             if (p.isUncertain) name += '(?)';
+             return name;
+        }).join(' → ');
+        
+        scaleFinderSelectedNotesEl.textContent = sequenceStr;
+
+        const results = findMatchingScales();
+        scaleFinderResultsList.innerHTML = '';
+        scaleFinderEmptyMessage.classList.add('hidden');
+        scaleFinderResultsList.classList.remove('hidden');
+        // ちょっと間隔を広げて見やすく
+        scaleFinderResultsList.classList.replace('gap-2', 'gap-3');
+
+        const MAX_RESULTS = 15;
+        let count = 0;
+        for (const res of results) {
+            if (count >= MAX_RESULTS) break;
+
+            const isPerfectMatch = res.matchCount === res.totalSelectedNotes;
+            
+            const item = document.createElement('div');
+            item.className = 'p-4 rounded-lg flex flex-col cursor-pointer transition-all duration-200 bg-white hover:bg-slate-50 border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 gap-1';
+            
+            let colorCls = isPerfectMatch ? 'text-green-600' : 'text-orange-500';
+            
+            let htmlStr = `
+                <div class="flex justify-between items-start">
+                    <h3 class="font-bold text-lg text-gray-800">${res.mainTitle}</h3>
+                    <div class="text-right ml-2 flex-shrink-0 text-right">
+                        <div class="font-bold whitespace-nowrap text-indigo-600">スコア: ${res.score} <span class="text-xs text-gray-400">/ ${maxPossibleScore}</span></div>
+                        <div class="text-xs ${colorCls} mt-1">${res.matchCount}/${res.totalSelectedNotes}音一致
+                        ${isPerfectMatch ? '<span class="ml-1 text-[10px] bg-green-100 text-green-800 px-1 py-0.5 rounded-sm inline-block align-middle transform -translate-y-px">全音包含</span>' : ''}</div>
+                    </div>
+                </div>
+            `;
+            if (res.subModesText) {
+                htmlStr += `<p class="text-xs text-gray-500 leading-relaxed mt-1">${res.subModesText}</p>`;
+            }
+            item.innerHTML = htmlStr;
+            
+            item.addEventListener('click', () => {
+                state.keyViewer.rootNoteIndex = res.primaryScale.rootIndex;
+                state.keyViewer.scaleType = res.primaryScale.scaleType;
+                
+                document.getElementById('key-viewer-root-selector').querySelectorAll('.active-mode').forEach(b => b.classList.remove('active-mode'));
+                document.getElementById('key-viewer-root-selector').querySelector(`[data-root-index="${res.primaryScale.rootIndex}"]`).classList.add('active-mode');
+                document.getElementById('key-viewer-scale-selector').querySelectorAll('.active-mode').forEach(b => b.classList.remove('active-mode'));
+                document.getElementById('key-viewer-scale-selector').querySelector(`[data-scale="${res.primaryScale.scaleType}"]`).classList.add('active-mode');
+                
+                tabKeyViewer.click();
+            });
+            
+            scaleFinderResultsList.appendChild(item);
+            count++;
+        }
+    }
+
+    function drawScaleFinderFretboard() {
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        const fretboardHeight = STRING_COUNT * FRET_HEIGHT;
+        const singleBoardHeight = fretboardHeight + FRET_NUM_AREA_HEIGHT;
+        const gapBetweenBoards = 40;
+        
+        const totalWidth = 13 * FRET_WIDTH; 
+        const totalHeight = singleBoardHeight * 2 + gapBetweenBoards;
+
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
+        svg.style.height = 'auto';
+
+        const noteArray = state.noteNameSystem === 'english' ? NOTES_ENHARMONIC : NOTES_SOLFEGE_ENHARMONIC;
+
+        const drawSection = (startFret, endFret, yOffset) => {
+            const fretOffset = startFret === 0 ? 0 : startFret - 1;
+            const bgWidth = (endFret - fretOffset + 1) * FRET_WIDTH;
+
+            const bg = document.createElementNS(svgNS, 'rect');
+            bg.setAttribute('x', 0);
+            bg.setAttribute('y', yOffset);
+            bg.setAttribute('width', Math.min(bgWidth, totalWidth));
+            bg.setAttribute('height', singleBoardHeight);
+            bg.setAttribute('fill', '#E3C6A4');
+            bg.setAttribute('rx', 4);
+            svg.appendChild(bg);
+
+            const group = document.createElementNS(svgNS, 'g');
+            group.setAttribute('transform', `translate(0, ${yOffset})`);
+
+            if (startFret > 0) {
+                const nut = document.createElementNS(svgNS, 'rect');
+                nut.setAttribute('x', 40 - 4); 
+                nut.setAttribute('y', 0);
+                nut.setAttribute('width', 8); 
+                nut.setAttribute('height', fretboardHeight);
+                nut.setAttribute('fill', '#9ca3af');
+                group.appendChild(nut);
+            }
+
+            for (let i = startFret; i <= endFret; i++) {
+                const mapped_i = i - fretOffset;
+                const x = (mapped_i + 0.5) * FRET_WIDTH;
+
+                if (mapped_i === 0 && startFret === 0) {
+                    const nut = document.createElementNS(svgNS, 'rect');
+                    nut.setAttribute('x', x - 4); nut.setAttribute('y', 0);
+                    nut.setAttribute('width', 8); nut.setAttribute('height', fretboardHeight);
+                    nut.setAttribute('fill', '#d1d5db'); group.appendChild(nut);
+                } else {
+                    const fretLine = document.createElementNS(svgNS, 'line');
+                    fretLine.setAttribute('x1', x); fretLine.setAttribute('y1', 0);
+                    fretLine.setAttribute('x2', x); fretLine.setAttribute('y2', fretboardHeight);
+                    fretLine.setAttribute('stroke', '#9ca3af');
+                    fretLine.setAttribute('stroke-width', i === 12 || i === 24 ? '5' : '3');
+                    group.appendChild(fretLine);
+                }
+
+                if (POSITION_MARKERS.includes(i) && i !== 0) {
+                    const marker = document.createElementNS(svgNS, 'circle');
+                    const markerX = x - FRET_WIDTH / 2; let markerY = fretboardHeight / 2;
+                    marker.setAttribute('cx', markerX); marker.setAttribute('cy', markerY);
+                    marker.setAttribute('r', '6'); 
+                    marker.setAttribute('fill', '#000000');
+                    marker.setAttribute('fill-opacity', '0.6');
+                    if (i === 12 || i === 24) {
+                        const marker2 = marker.cloneNode();
+                        marker.setAttribute('cy', markerY - FRET_HEIGHT);
+                        marker2.setAttribute('cy', markerY + FRET_HEIGHT);
+                        group.appendChild(marker2);
+                    }
+                    group.appendChild(marker);
+                }
+            }
+
+            for (let s = 0; s < STRING_COUNT; s++) {
+                const y = (s + 0.5) * FRET_HEIGHT;
+                const stringLine = document.createElementNS(svgNS, 'line');
+                stringLine.setAttribute('x1', FRET_WIDTH / 2); stringLine.setAttribute('y1', y);
+                const maxMapped_i = endFret - fretOffset;
+                stringLine.setAttribute('x2', (maxMapped_i + 0.5) * FRET_WIDTH); stringLine.setAttribute('y2', y);
+                stringLine.setAttribute('stroke', '#6b7280');
+                stringLine.setAttribute('stroke-width', 1.5 + s * 0.4);
+                group.appendChild(stringLine);
+            }
+
+            const fretNumGroup = document.createElementNS(svgNS, 'g');
+            fretNumGroup.setAttribute('transform', `translate(0, ${fretboardHeight})`);
+            for (let i = startFret; i <= endFret; i++) {
+                if (i === 0) continue;
+                const mapped_i = i - fretOffset;
+                const x = mapped_i * FRET_WIDTH; 
+                const y = (FRET_NUM_AREA_HEIGHT / 2) + 5;
+                const text = document.createElementNS(svgNS, 'text');
+                text.setAttribute('x', x); text.setAttribute('y', y);
+                text.setAttribute('fill', '#6b7280'); text.setAttribute('font-size', '14');
+                text.setAttribute('font-weight', '600'); text.setAttribute('text-anchor', 'middle');
+                text.textContent = i; fretNumGroup.appendChild(text);
+            }
+            group.appendChild(fretNumGroup);
+
+            for (let stringIdx = 0; stringIdx < STRING_COUNT; stringIdx++) {
+                const openNoteIndex = TUNING[stringIdx];
+                for (let fret = startFret; fret <= endFret; fret++) {
+                    const mapped_i = fret - fretOffset;
+                    const currentNoteIndex = (openNoteIndex + fret) % 12;
+                    const hitX = mapped_i === 0 && startFret === 0 ? (0.25) * FRET_WIDTH : mapped_i * FRET_WIDTH;
+                    const hitY = (stringIdx + 0.5) * FRET_HEIGHT;
+                    
+                    const selectedPos = state.scaleFinder.selectedPositions.find(p => p.string === stringIdx && p.fret === fret);
+                    const isSelected = !!selectedPos;
+
+                    const g = document.createElementNS(svgNS, "g");
+                    g.classList.add('finder-marker');
+                    g.style.cursor = 'pointer';
+                    g.dataset.string = stringIdx;
+                    g.dataset.fret = fret;
+                    g.dataset.noteIndex = currentNoteIndex;
+                    g.dataset.midiNote = BASE_MIDI_NOTES[stringIdx] + fret;
+                    
+                    const hitCircle = document.createElementNS(svgNS, 'circle');
+                    hitCircle.setAttribute('cx', hitX); hitCircle.setAttribute('cy', hitY);
+                    hitCircle.setAttribute('r', FRET_HEIGHT * 0.45);
+                    hitCircle.setAttribute('fill', 'transparent');
+                    g.appendChild(hitCircle);
+
+                    if (isSelected) {
+                        const circle = document.createElementNS(svgNS, 'circle');
+                        circle.setAttribute('cx', hitX); circle.setAttribute('cy', hitY);
+                        circle.setAttribute('r', FRET_HEIGHT * 0.4);
+                        
+                        if (selectedPos.isUncertain) {
+                            circle.setAttribute('fill', '#10b981');
+                            circle.setAttribute('fill-opacity', '0.2');
+                            if (selectedPos.isUnnatural) {
+                                circle.setAttribute('stroke', '#f97316');
+                                circle.setAttribute('stroke-width', '2');
+                            } else {
+                                circle.setAttribute('stroke', '#10b981');
+                                circle.setAttribute('stroke-width', '2');
+                                circle.setAttribute('stroke-dasharray', '4,2');
+                            }
+                        } else {
+                            circle.setAttribute('fill', '#10b981');
+                        }
+
+                        const text = document.createElementNS(svgNS, 'text');
+                        text.setAttribute('x', hitX); text.setAttribute('y', hitY + 4.5);
+                        text.setAttribute('fill', selectedPos.isUncertain ? (selectedPos.isUnnatural ? '#f97316' : '#10b981') : '#ffffff');
+                        text.setAttribute('font-size', '11');
+                        text.setAttribute('font-weight', 'bold');
+                        text.setAttribute('text-anchor', 'middle');
+                        text.style.pointerEvents = 'none';
+                        text.textContent = noteArray[currentNoteIndex].replace(/\(.+\)/, '');
+
+                        g.appendChild(circle);
+                        g.appendChild(text);
+
+                        if (selectedPos.isUncertain) {
+                            const questionMark = document.createElementNS(svgNS, 'text');
+                            questionMark.setAttribute('x', hitX + FRET_HEIGHT * 0.35); 
+                            questionMark.setAttribute('y', hitY - FRET_HEIGHT * 0.25);
+                            questionMark.setAttribute('fill', selectedPos.isUnnatural ? '#f97316' : '#10b981');
+                            questionMark.setAttribute('font-size', '14');
+                            questionMark.setAttribute('font-weight', 'bold');
+                            questionMark.setAttribute('text-anchor', 'middle');
+                            questionMark.style.pointerEvents = 'none';
+                            questionMark.textContent = selectedPos.isUnnatural ? '!' : '?';
+                            g.appendChild(questionMark);
+                        }
+                    }
+                    group.appendChild(g);
+                }
+            }
+            svg.appendChild(group);
+        };
+
+        drawSection(0, 12, 0);
+        drawSection(13, 24, singleBoardHeight + gapBetweenBoards);
+
+        scaleFinderFretboardContainer.innerHTML = '';
+        scaleFinderFretboardContainer.appendChild(svg);
+    }
+
+    function findPlayableCombinations(missingPitches, currentPositions) {
+        if (missingPitches.length === 0) return [{ combo: [], stretch: 0 }];
+        
+        const usedStrings = currentPositions.map(p => p.string);
+        const availableStrings = [0, 1, 2, 3, 4, 5].filter(s => !usedStrings.includes(s));
+        
+        if (availableStrings.length < missingPitches.length) return []; 
+
+        let validCombinations = [];
+
+        function backtrack(missingIdx, currentCombo, usedStringsInCombo) {
+            if (missingIdx === missingPitches.length) {
+                const allPositions = [...currentPositions, ...currentCombo].filter(p => p.fret > 0);
+                let stretch = 0;
+                if (allPositions.length > 0) {
+                    const frets = allPositions.map(p => p.fret);
+                    stretch = Math.max(...frets) - Math.min(...frets);
+                }
+                if (stretch <= 5) {
+                    validCombinations.push({ combo: [...currentCombo], stretch });
+                }
+                return;
+            }
+
+            const targetPitch = missingPitches[missingIdx];
+            
+            let minSearchFret = 0;
+            let maxSearchFret = 24;
+            
+            let existingFrets = currentPositions.filter(p => p.fret > 0).map(p => p.fret);
+            if (existingFrets.length > 0) {
+                const cMin = Math.min(...existingFrets);
+                const cMax = Math.max(...existingFrets);
+                minSearchFret = Math.max(0, cMin - 5);
+                maxSearchFret = Math.min(24, cMax + 5);
+            }
+
+            for (let s of availableStrings) {
+                if (usedStringsInCombo.has(s)) continue;
+                
+                const openNoteIndex = TUNING[s];
+                for (let f = minSearchFret; f <= maxSearchFret; f++) {
+                    if ((openNoteIndex + f) % 12 === targetPitch) {
+                        currentCombo.push({ string: s, fret: f, noteIndex: targetPitch, midiNote: BASE_MIDI_NOTES[s] + f });
+                        usedStringsInCombo.add(s);
+                        backtrack(missingIdx + 1, currentCombo, usedStringsInCombo);
+                        usedStringsInCombo.delete(s);
+                        currentCombo.pop();
+                    }
+                }
+            }
+        }
+
+        backtrack(0, [], new Set());
+        
+        validCombinations.sort((a, b) => a.stretch - b.stretch);
+        return validCombinations;
+    }
+
+    function updateChordBuilder() {
+        const { selectedKeyIndex, selectedPositions } = state.chordBuilder;
+        const noteArray = state.noteNameSystem === 'english' ? NOTES_ENHARMONIC : NOTES_SOLFEGE_ENHARMONIC;
+
+        if (selectedPositions.length === 0) {
+            chordBuilderSelectedNotesEl.innerHTML = '(なし)';
+            chordBuilderResultsList.innerHTML = '';
+            chordBuilderEmptyMessage.classList.remove('hidden');
+            chordBuilderResultsList.classList.add('hidden');
+            return;
+        }
+
+        const uniquePitches = Array.from(new Set(selectedPositions.map(p => p.noteIndex))).sort((a, b) => a - b);
+        const pitchHtml = uniquePitches.map(pitch => {
+            const name = noteArray[pitch].replace(/\(.+\)/, '');
+            const interval = (pitch - selectedKeyIndex + 12) % 12;
+            const degree = getDegreeString(interval);
+            return `<span class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-sm">${name} <span class="text-xs text-indigo-500">(${degree})</span></span>`;
+        }).join('');
+        chordBuilderSelectedNotesEl.innerHTML = pitchHtml;
+
+        const results = [];
+        for (let rootIndex = 0; rootIndex < 12; rootIndex++) {
+            for (const chordType in CHORDS) {
+                const chordDef = CHORDS[chordType];
+                const chordPitchClasses = chordDef.intervals.map(inter => (rootIndex + inter) % 12);
+
+                let isSubset = true;
+                for (const pitch of uniquePitches) {
+                    if (!chordPitchClasses.includes(pitch)) {
+                        isSubset = false;
+                        break;
+                    }
+                }
+                
+                if (isSubset) {
+                    const missingPitches = chordPitchClasses.filter(p => !uniquePitches.includes(p));
+                    const playableCombos = findPlayableCombinations(missingPitches, selectedPositions);
+
+                    if (playableCombos.length > 0) {
+                        const bestCombo = playableCombos[0];
+                        
+                        let score = chordDef.weight;
+                        const keyScalePitches = SCALES['major'].intervals.map(inter => (selectedKeyIndex + inter) % 12);
+                        const isDiatonic = chordPitchClasses.every(p => keyScalePitches.includes(p));
+                        if (isDiatonic) score += 20;
+
+                        score -= missingPitches.length * 10;
+                        score -= bestCombo.stretch * 2;
+
+                        results.push({
+                            rootIndex,
+                            chordType,
+                            chordDef,
+                            combo: bestCombo.combo,
+                            missingPitches,
+                            score
+                        });
+                    }
+                }
+            }
+        }
+
+        results.sort((a, b) => {
+            if (b.score !== a.score) return b.score - a.score;
+            return a.missingPitches.length - b.missingPitches.length;
+        });
+
+        chordBuilderResultsList.innerHTML = '';
+        chordBuilderEmptyMessage.classList.add('hidden');
+        chordBuilderResultsList.classList.remove('hidden');
+
+        const MAX_RESULTS = 15;
+        let count = 0;
+        for (const res of results) {
+            if (count >= MAX_RESULTS) break;
+
+            const rootName = noteArray[res.rootIndex].replace(/\(.+\)/, '');
+            
+            const comboTextNodes = res.combo.map(c => {
+                const name = noteArray[c.noteIndex].replace(/\(.+\)/, '');
+                const interval = (c.noteIndex - res.rootIndex + 12) % 12;
+                const degree = getDegreeString(interval);
+                return `<span class="bg-gray-100 text-gray-700 font-semibold px-1.5 py-0.5 rounded text-xs">${c.string + 1}弦 ${c.fret}F (${degree})</span>`;
+            });
+
+            const item = document.createElement('div');
+            item.className = 'p-4 rounded-lg flex flex-col cursor-pointer transition-all duration-200 bg-white hover:bg-indigo-50 border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 gap-2';
+            
+            item.addEventListener('mouseenter', () => {
+                state.chordBuilder.previewChord = {
+                    combo: res.combo
+                };
+                drawChordBuilderFretboard();
+            });
+            item.addEventListener('mouseleave', () => {
+                state.chordBuilder.previewChord = null;
+                drawChordBuilderFretboard();
+            });
+
+            let htmlStr = `
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
+                    <div>
+                        <h3 class="font-bold text-lg text-gray-800">${rootName} ${res.chordDef.name}</h3>
+                        <div class="mt-1 flex flex-wrap gap-1 items-center">
+                            ${res.combo.length === 0 ? '<span class="text-green-600 font-bold text-xs bg-green-50 px-2 py-1 rounded">完成形</span>' : '<span class="text-xs text-gray-500 mr-1">追加ポジション:</span>' + comboTextNodes.join('')}
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mt-3 sm:mt-0 w-full sm:w-auto">
+                        <button class="play-btn bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold py-1.5 px-3 rounded text-sm flex-1 sm:flex-none flex items-center justify-center transition">
+                            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                            試聴する
+                        </button>
+                        ${res.combo.length > 0 ? `
+                        <button class="adopt-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 rounded text-sm flex-1 sm:flex-none flex items-center justify-center transition">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                            採用する
+                        </button>` : ''}
+                    </div>
+                </div>
+            `;
+            item.innerHTML = htmlStr;
+            
+            const playBtn = item.querySelector('.play-btn');
+            playBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // 全部同時に鳴らす
+                const allMidis = [...selectedPositions.map(p => p.midiNote), ...res.combo.map(c => c.midiNote)];
+                allMidis.forEach(m => playTone(m));
+            });
+
+            const adoptBtn = item.querySelector('.adopt-btn');
+            if (adoptBtn) {
+                adoptBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    state.chordBuilder.selectedPositions.push(...res.combo);
+                    state.chordBuilder.previewChord = null;
+                    drawChordBuilderFretboard();
+                    updateChordBuilder();
+                });
+            }
+
+            chordBuilderResultsList.appendChild(item);
+            count++;
+        }
+        if (results.length === 0) {
+            chordBuilderResultsList.innerHTML = '<p class="text-gray-500 text-center py-4">現在の構成音を含むコードのポジションが見つかりません。別の音を選択してください。</p>';
+        }
+    }
+
+    function drawChordBuilderFretboard() {
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        const fretboardHeight = STRING_COUNT * FRET_HEIGHT;
+        const singleBoardHeight = fretboardHeight + FRET_NUM_AREA_HEIGHT;
+        const gapBetweenBoards = 40;
+        
+        const totalWidth = 13 * FRET_WIDTH; 
+        const totalHeight = singleBoardHeight * 2 + gapBetweenBoards;
+
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
+        svg.style.height = 'auto';
+
+        const noteArray = state.noteNameSystem === 'english' ? NOTES_ENHARMONIC : NOTES_SOLFEGE_ENHARMONIC;
+        const { selectedKeyIndex, selectedPositions, previewChord } = state.chordBuilder;
+
+        const drawSection = (startFret, endFret, yOffset) => {
+            const fretOffset = startFret === 0 ? 0 : startFret - 1;
+            const bgWidth = (endFret - fretOffset + 1) * FRET_WIDTH;
+
+            const bg = document.createElementNS(svgNS, 'rect');
+            bg.setAttribute('x', 0);
+            bg.setAttribute('y', yOffset);
+            bg.setAttribute('width', Math.min(bgWidth, totalWidth));
+            bg.setAttribute('height', singleBoardHeight);
+            bg.setAttribute('fill', '#E3C6A4');
+            bg.setAttribute('rx', 4);
+            svg.appendChild(bg);
+
+            const group = document.createElementNS(svgNS, 'g');
+            group.setAttribute('transform', `translate(0, ${yOffset})`);
+
+            if (startFret > 0) {
+                const nut = document.createElementNS(svgNS, 'rect');
+                nut.setAttribute('x', 40 - 4); 
+                nut.setAttribute('y', 0);
+                nut.setAttribute('width', 8); 
+                nut.setAttribute('height', fretboardHeight);
+                nut.setAttribute('fill', '#9ca3af');
+                group.appendChild(nut);
+            }
+
+            for (let i = startFret; i <= endFret; i++) {
+                const mapped_i = i - fretOffset;
+                const x = (mapped_i + 0.5) * FRET_WIDTH;
+
+                if (mapped_i === 0 && startFret === 0) {
+                    const nut = document.createElementNS(svgNS, 'rect');
+                    nut.setAttribute('x', x - 4); nut.setAttribute('y', 0);
+                    nut.setAttribute('width', 8); nut.setAttribute('height', fretboardHeight);
+                    nut.setAttribute('fill', '#d1d5db'); group.appendChild(nut);
+                } else {
+                    const fretLine = document.createElementNS(svgNS, 'line');
+                    fretLine.setAttribute('x1', x); fretLine.setAttribute('y1', 0);
+                    fretLine.setAttribute('x2', x); fretLine.setAttribute('y2', fretboardHeight);
+                    fretLine.setAttribute('stroke', '#9ca3af');
+                    fretLine.setAttribute('stroke-width', i === 12 || i === 24 ? '5' : '3');
+                    group.appendChild(fretLine);
+                }
+
+                if (POSITION_MARKERS.includes(i) && i !== 0) {
+                    const marker = document.createElementNS(svgNS, 'circle');
+                    const markerX = x - FRET_WIDTH / 2; let markerY = fretboardHeight / 2;
+                    marker.setAttribute('cx', markerX); marker.setAttribute('cy', markerY);
+                    marker.setAttribute('r', '6'); marker.setAttribute('fill', '#000000');
+                    marker.setAttribute('fill-opacity', '0.6');
+                    if (i === 12 || i === 24) {
+                        const marker2 = marker.cloneNode();
+                        marker.setAttribute('cy', markerY - FRET_HEIGHT);
+                        marker2.setAttribute('cy', markerY + FRET_HEIGHT);
+                        group.appendChild(marker2);
+                    }
+                    group.appendChild(marker);
+                }
+            }
+
+            for (let s = 0; s < STRING_COUNT; s++) {
+                const y = (s + 0.5) * FRET_HEIGHT;
+                const stringLine = document.createElementNS(svgNS, 'line');
+                stringLine.setAttribute('x1', FRET_WIDTH / 2); stringLine.setAttribute('y1', y);
+                const maxMapped_i = endFret - fretOffset;
+                stringLine.setAttribute('x2', (maxMapped_i + 0.5) * FRET_WIDTH); stringLine.setAttribute('y2', y);
+                stringLine.setAttribute('stroke', '#6b7280');
+                stringLine.setAttribute('stroke-width', 1.5 + s * 0.4);
+                group.appendChild(stringLine);
+            }
+
+            const fretNumGroup = document.createElementNS(svgNS, 'g');
+            fretNumGroup.setAttribute('transform', `translate(0, ${fretboardHeight})`);
+            for (let i = startFret; i <= endFret; i++) {
+                if (i === 0) continue;
+                const mapped_i = i - fretOffset;
+                const x = mapped_i * FRET_WIDTH; 
+                const y = (FRET_NUM_AREA_HEIGHT / 2) + 5;
+                const text = document.createElementNS(svgNS, 'text');
+                text.setAttribute('x', x); text.setAttribute('y', y);
+                text.setAttribute('fill', '#6b7280'); text.setAttribute('font-size', '14');
+                text.setAttribute('font-weight', '600'); text.setAttribute('text-anchor', 'middle');
+                text.textContent = i; fretNumGroup.appendChild(text);
+            }
+            group.appendChild(fretNumGroup);
+
+            // ノート描画用の計算
+            let minSelectedFret = 24, maxSelectedFret = 0;
+            selectedPositions.forEach(p => {
+                if(p.fret > 0) { // 開放弦は計算から除外
+                    if(p.fret < minSelectedFret) minSelectedFret = p.fret;
+                    if(p.fret > maxSelectedFret) maxSelectedFret = p.fret;
+                }
+            });
+            const centerFret = selectedPositions.length > 0 && minSelectedFret <= maxSelectedFret 
+                                ? (minSelectedFret + maxSelectedFret) / 2 : null;
+
+            for (let stringIdx = 0; stringIdx < STRING_COUNT; stringIdx++) {
+                const openNoteIndex = TUNING[stringIdx];
+                for (let fret = startFret; fret <= endFret; fret++) {
+                    const mapped_i = fret - fretOffset;
+                    const currentNoteIndex = (openNoteIndex + fret) % 12;
+                    const hitX = mapped_i === 0 && startFret === 0 ? (0.25) * FRET_WIDTH : mapped_i * FRET_WIDTH;
+                    const hitY = (stringIdx + 0.5) * FRET_HEIGHT;
+                    
+                    const selectedPos = selectedPositions.find(p => p.string === stringIdx && p.fret === fret);
+                    const isSelected = !!selectedPos;
+
+                    let isPreview = false;
+                    if (!isSelected && previewChord) {
+                        const isComboHit = previewChord.combo.some(c => c.string === stringIdx && c.fret === fret);
+                        if (isComboHit) isPreview = true;
+                    }
+
+                    const g = document.createElementNS(svgNS, "g");
+                    g.classList.add('builder-marker');
+                    g.style.cursor = 'pointer';
+                    g.dataset.string = stringIdx;
+                    g.dataset.fret = fret;
+                    g.dataset.noteIndex = currentNoteIndex;
+                    g.dataset.midiNote = BASE_MIDI_NOTES[stringIdx] + fret;
+                    
+                    // クリック用の透明ヒットエリア
+                    const hitCircle = document.createElementNS(svgNS, 'circle');
+                    hitCircle.setAttribute('cx', hitX); hitCircle.setAttribute('cy', hitY);
+                    hitCircle.setAttribute('r', FRET_HEIGHT * 0.45);
+                    hitCircle.setAttribute('fill', 'transparent');
+                    g.appendChild(hitCircle);
+
+                    if (isSelected || isPreview) {
+                        const circle = document.createElementNS(svgNS, 'circle');
+                        circle.setAttribute('cx', hitX); circle.setAttribute('cy', hitY);
+                        circle.setAttribute('r', FRET_HEIGHT * 0.4);
+                        
+                        const interval = (currentNoteIndex - selectedKeyIndex + 12) % 12;
+
+                        if (isSelected) {
+                            circle.setAttribute('fill', '#3b82f6'); // 確定音: 青
+                        } else if (isPreview) {
+                            circle.setAttribute('fill', '#10b981'); // 推奨追加: 緑
+                            circle.setAttribute('fill-opacity', '0.25');
+                            circle.setAttribute('stroke', '#10b981');
+                            circle.setAttribute('stroke-width', '2');
+                            circle.setAttribute('stroke-dasharray', '4,2');
+                        }
+
+                        const text = document.createElementNS(svgNS, 'text');
+                        text.setAttribute('x', hitX); text.setAttribute('y', hitY + 4.5);
+                        
+                        if (isSelected) {
+                            text.setAttribute('fill', '#ffffff');
+                            text.setAttribute('font-weight', 'bold');
+                        } else {
+                            text.setAttribute('fill', '#059669');
+                            text.setAttribute('font-weight', 'normal');
+                        }
+                        
+                        text.setAttribute('font-size', '11');
+                        text.setAttribute('text-anchor', 'middle');
+                        text.style.pointerEvents = 'none';
+                        text.textContent = getDegreeString(interval);
+
+                        g.appendChild(circle);
+                        g.appendChild(text);
+                    }
+                    group.appendChild(g);
+                }
+            }
+            svg.appendChild(group);
+        };
+
+        drawSection(0, 12, 0);
+        drawSection(13, 24, singleBoardHeight + gapBetweenBoards);
+
+        const chordBuilderFretboardContainer = document.getElementById('chord-builder-fretboard-container');
+        if (chordBuilderFretboardContainer) {
+            chordBuilderFretboardContainer.innerHTML = '';
+            chordBuilderFretboardContainer.appendChild(svg);
+        }
+    }
+
     // --- 指板描画 ---
     function drawFretboard() {
         const { fretViewStart, selectedStrings, targetString, targetFret } = state.fretboard;
@@ -176,6 +1224,7 @@ document.addEventListener('DOMContentLoaded', () => {
         svg.setAttribute('width', '100%');
         svg.setAttribute('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
         svg.style.backgroundColor = '#E3C6A4';
+        svg.style.height = 'auto';
         for (let i = 0; i <= DISPLAY_FRET_COUNT; i++) {
             const currentFret = fretViewStart + i;
             const x = (i + 0.5) * FRET_WIDTH;
@@ -288,7 +1337,6 @@ document.addEventListener('DOMContentLoaded', () => {
         svg.setAttribute('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
         svg.style.backgroundColor = '#E3C6A4';
         svg.style.height = 'auto';
-        svg.style.maxHeight = '400px';
 
         // --- ベースの指板描画（クイズ用とほぼ同じ機能） ---
         for (let i = 0; i <= KEY_VIEWER_FRET_COUNT; i++) {
@@ -360,6 +1408,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     g.classList.add('scale-marker');
                     // クリックで音を鳴らすためのデータ属性
                     g.dataset.midiNote = BASE_MIDI_NOTES[stringIdx] + fret;
+                    g.dataset.string = stringIdx;
+                    g.dataset.fret = fret;
                     // iOS等でのタッチ・クリック反応エリア
                     g.style.cursor = 'pointer';
                     // Safari / 旧ブラウザ等で確実に中心を原点にするためインライン指定
@@ -372,12 +1422,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     circle.setAttribute('r', defaultR);
                     // SVGのtransition (属性値の変更にアニメーションを効かせる)
                     circle.style.transition = 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
-                    // ルート音なら色を変える赤系、それ以外は青系
-                    if (isRoot) {
-                        circle.setAttribute('fill', '#ef4444'); // Tailwind red-500
-                    } else {
-                        circle.setAttribute('fill', '#3b82f6'); // Tailwind blue-500
-                    }
+                    // 色分けとテキスト表示の制御用インターバル
+                    const interval = (currentNoteIndex - rootNoteIndex + 12) % 12;
+
+                    // 度数に基づく色分け
+                    circle.setAttribute('fill', getDegreeColor(interval));
 
                     const text = document.createElementNS(svgNS, 'text');
                     text.setAttribute('x', cx); text.setAttribute('y', cy + 4.5); // 中央より少し下に調整
@@ -387,7 +1436,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     text.setAttribute('font-weight', 'bold');
                     text.setAttribute('text-anchor', 'middle');
                     text.style.pointerEvents = 'none'; // テキスト自体はホバー判定しないように
-                    text.textContent = noteArray[currentNoteIndex].replace(/\(.+\)/, '');
+                    
+                    if (state.keyViewer.showDegree) {
+                        text.textContent = getDegreeString(interval);
+                    } else {
+                        text.textContent = noteArray[currentNoteIndex].replace(/\(.+\)/, '');
+                    }
 
                     g.appendChild(circle);
                     g.appendChild(text);
@@ -564,7 +1618,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     const circle = document.createElementNS(svgNS, 'circle');
                     circle.setAttribute('cx', cx); circle.setAttribute('cy', cy);
                     circle.setAttribute('r', FRET_HEIGHT * 0.4);
-                    circle.setAttribute('fill', isRoot ? '#ef4444' : '#3b82f6');
+                    
+                    // 色分けとテキスト表示の制御用インターバル
+                    const interval = (currentNoteIndex - rootNoteIndex + 12) % 12;
+                    // 度数に基づく色分け
+                    circle.setAttribute('fill', getDegreeColor(interval));
 
                     const text = document.createElementNS(svgNS, 'text');
                     text.setAttribute('x', cx); text.setAttribute('y', cy + 5);
@@ -572,7 +1630,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     text.setAttribute('font-size', '12');
                     text.setAttribute('font-weight', 'bold');
                     text.setAttribute('text-anchor', 'middle');
-                    text.textContent = noteArray[currentNoteIndex].replace(/\(.+\)/, '');
+                    
+                    if (state.keyViewer.showDegree) {
+                        text.textContent = getDegreeString(interval);
+                    } else {
+                        text.textContent = noteArray[currentNoteIndex].replace(/\(.+\)/, '');
+                    }
 
                     g.appendChild(circle);
                     g.appendChild(text);
@@ -607,13 +1670,27 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (s.quizFretRange === '13-24') { minFret = 13; maxFret = 24; }
         else { minFret = 0; maxFret = 24; }
 
-        // OVERRIDE: Only 5th string open and 5th string 5th fret
-        // 5th string is index 4 in TUNING array (0-indexed, where 0 is 1st string)
-        console.log("Generating restricted question: 5th string Open or 5th Fret");
-        possiblePositions = [
-            { string: 4, fret: 0, noteIndex: (TUNING[4] + 0) % 12 }, // 5th string open (A)
-            { string: 4, fret: 5, noteIndex: (TUNING[4] + 5) % 12 }  // 5th string 5th fret (D)
-        ];
+        for (let stringIdx of stringsToTest) {
+            for (let fret = minFret; fret <= maxFret; fret++) {
+                const noteIndex = (TUNING[stringIdx] + fret) % 12;
+                
+                // 半音除外のフィルタリング
+                if (state.hideSemitones && !NATURAL_INDICES.includes(noteIndex)) {
+                    continue;
+                }
+                
+                // 指定音名フィルタリング
+                if (s.noteFilter && s.noteFilter.length > 0 && !s.noteFilter.includes(noteIndex)) {
+                    continue;
+                }
+                
+                possiblePositions.push({
+                    string: stringIdx,
+                    fret: fret,
+                    noteIndex: noteIndex
+                });
+            }
+        }
 
         if (possiblePositions.length === 0) {
             fretboardPositionHintEl.textContent = '条件に合う音が見つかりません';
@@ -759,18 +1836,24 @@ document.addEventListener('DOMContentLoaded', () => {
         tabFretboard.classList.remove('tab-active');
         tabSolfege.classList.remove('tab-active');
         tabKeyViewer.classList.remove('tab-active');
+        if (tabScaleFinder) tabScaleFinder.classList.remove('tab-active');
+        if (tabChordBuilder) tabChordBuilder.classList.remove('tab-active');
+        
         fretboardQuizContainer.classList.add('hidden');
         solfegeQuizContainer.classList.add('hidden');
         keyViewerContainer.classList.add('hidden');
+        if (scaleFinderContainer) scaleFinderContainer.classList.add('hidden');
+        if (chordBuilderContainer) chordBuilderContainer.classList.add('hidden');
+        
         fretboardNextBtn.classList.add('hidden');
         solfegeNextBtn.classList.add('hidden');
 
-        // Key Viewerの場合は回答エリア・問題関連エリアを隠す
-        const isNotKeyViewer = tabName !== 'keyViewer';
-        answerArea.classList.toggle('hidden', !isNotKeyViewer);
-        // hideSemitonesボタンはキー表示では使わないため表示切り替え
+        // Key Viewer / Scale Finder / Chord Builder の場合は回答エリア・問題関連エリアを隠す
+        const isNotTools = tabName !== 'keyViewer' && tabName !== 'scaleFinder' && tabName !== 'chordBuilder';
+        answerArea.classList.toggle('hidden', !isNotTools);
+        // hideSemitonesボタンはツール系では使わないため表示切り替え
         const semitonesBtn = document.getElementById('toggle-semitones-btn');
-        if (semitonesBtn) semitonesBtn.parentElement.classList.toggle('hidden', !isNotKeyViewer);
+        if (semitonesBtn) semitonesBtn.parentElement.classList.toggle('hidden', !isNotTools);
 
         if (tabName === 'fretboard') {
             tabFretboard.classList.add('tab-active');
@@ -786,6 +1869,15 @@ document.addEventListener('DOMContentLoaded', () => {
             tabKeyViewer.classList.add('tab-active');
             keyViewerContainer.classList.remove('hidden');
             drawKeyViewerFretboard();
+        } else if (tabName === 'scaleFinder') {
+            if (tabScaleFinder) tabScaleFinder.classList.add('tab-active');
+            if (scaleFinderContainer) scaleFinderContainer.classList.remove('hidden');
+            drawScaleFinderFretboard();
+        } else if (tabName === 'chordBuilder') {
+            if (tabChordBuilder) tabChordBuilder.classList.add('tab-active');
+            if (chordBuilderContainer) chordBuilderContainer.classList.remove('hidden');
+            if (typeof drawChordBuilderFretboard === 'function') drawChordBuilderFretboard();
+            if (typeof updateChordBuilder === 'function') updateChordBuilder();
         }
     }
 
@@ -845,6 +1937,143 @@ document.addEventListener('DOMContentLoaded', () => {
         tabFretboard.addEventListener('click', (e) => { e.preventDefault(); switchTab('fretboard'); });
         tabSolfege.addEventListener('click', (e) => { e.preventDefault(); switchTab('solfege'); });
         tabKeyViewer.addEventListener('click', (e) => { e.preventDefault(); switchTab('keyViewer'); });
+        if (tabScaleFinder) tabScaleFinder.addEventListener('click', (e) => { e.preventDefault(); switchTab('scaleFinder'); });
+        if (tabChordBuilder) tabChordBuilder.addEventListener('click', (e) => { e.preventDefault(); switchTab('chordBuilder'); });
+
+        if (chordBuilderClearBtn) {
+            chordBuilderClearBtn.addEventListener('click', () => {
+                state.chordBuilder.selectedPositions = [];
+                state.chordBuilder.previewChord = null;
+                if (typeof drawChordBuilderFretboard === 'function') drawChordBuilderFretboard();
+                if (typeof updateChordBuilder === 'function') updateChordBuilder();
+            });
+        }
+
+        if (chordBuilderUndoBtn) {
+            chordBuilderUndoBtn.addEventListener('click', () => {
+                if (state.chordBuilder.selectedPositions.length > 0) {
+                    state.chordBuilder.selectedPositions.pop();
+                    state.chordBuilder.previewChord = null;
+                    if (typeof drawChordBuilderFretboard === 'function') drawChordBuilderFretboard();
+                    if (typeof updateChordBuilder === 'function') updateChordBuilder();
+                }
+            });
+        }
+
+        if (chordBuilderKeySelector) {
+            chordBuilderKeySelector.addEventListener('change', (e) => {
+                state.chordBuilder.selectedKeyIndex = parseInt(e.target.value);
+                state.chordBuilder.previewChord = null;
+                if (typeof drawChordBuilderFretboard === 'function') drawChordBuilderFretboard();
+                if (typeof updateChordBuilder === 'function') updateChordBuilder();
+            });
+        }
+
+        if (scaleFinderClearBtn) {
+            scaleFinderClearBtn.addEventListener('click', () => {
+                state.scaleFinder.selectedPositions = [];
+                drawScaleFinderFretboard();
+                updateScaleFinder();
+            });
+        }
+
+        if (scaleFinderUndoBtn) {
+            scaleFinderUndoBtn.addEventListener('click', () => {
+                if (state.scaleFinder.selectedPositions.length > 0) {
+                    state.scaleFinder.selectedPositions.pop();
+                    drawScaleFinderFretboard();
+                    updateScaleFinder();
+                }
+            });
+        }
+
+        if (scaleFinderFretboardContainer) {
+            const handleInteract = (e) => {
+                const marker = e.target.closest('.finder-marker');
+                if (!marker) return;
+
+                if (e.type === 'contextmenu') e.preventDefault();
+
+                const stringIdx = parseInt(marker.dataset.string);
+                const fret = parseInt(marker.dataset.fret);
+                const noteIndex = parseInt(marker.dataset.noteIndex);
+                const midiNote = parseInt(marker.dataset.midiNote);
+
+                const isRightClick = e.type === 'contextmenu' || e.shiftKey || (e.button === 2);
+
+                const existingIndex = state.scaleFinder.selectedPositions.findIndex(
+                    p => p.string === stringIdx && p.fret === fret
+                );
+
+                if (existingIndex >= 0) {
+                    if (isRightClick) {
+                        state.scaleFinder.selectedPositions[existingIndex].isUncertain = !state.scaleFinder.selectedPositions[existingIndex].isUncertain;
+                    } else {
+                        state.scaleFinder.selectedPositions.splice(existingIndex, 1);
+                    }
+                } else {
+                    let isUncertain = isRightClick;
+                    let isUnnatural = false;
+
+                    if (state.scaleFinder.selectedPositions.length > 0) {
+                        const lastPos = state.scaleFinder.selectedPositions[state.scaleFinder.selectedPositions.length - 1];
+                        if (fret !== 0 && lastPos.fret !== 0 && Math.abs(fret - lastPos.fret) >= 6) {
+                            isUnnatural = true;
+                            isUncertain = true;
+                        }
+                    }
+
+                    state.scaleFinder.selectedPositions.push({
+                        string: stringIdx,
+                        fret: fret,
+                        noteIndex: noteIndex,
+                        midiNote: midiNote,
+                        isUncertain: isUncertain,
+                        isUnnatural: isUnnatural
+                    });
+                    playTone(midiNote);
+                }
+
+                drawScaleFinderFretboard();
+                updateScaleFinder();
+            };
+
+            scaleFinderFretboardContainer.addEventListener('click', handleInteract);
+            scaleFinderFretboardContainer.addEventListener('contextmenu', handleInteract);
+        }
+
+        if (chordBuilderFretboardContainer) {
+            chordBuilderFretboardContainer.addEventListener('click', (e) => {
+                const marker = e.target.closest('.builder-marker');
+                if (!marker) return;
+
+                const stringIdx = parseInt(marker.dataset.string);
+                const fret = parseInt(marker.dataset.fret);
+                const noteIndex = parseInt(marker.dataset.noteIndex);
+                const midiNote = parseInt(marker.dataset.midiNote);
+
+                const existingIndex = state.chordBuilder.selectedPositions.findIndex(
+                    p => p.string === stringIdx && p.fret === fret
+                );
+
+                if (existingIndex >= 0) {
+                    state.chordBuilder.selectedPositions.splice(existingIndex, 1);
+                } else {
+                    state.chordBuilder.selectedPositions = state.chordBuilder.selectedPositions.filter(p => p.string !== stringIdx);
+                    state.chordBuilder.selectedPositions.push({
+                        string: stringIdx,
+                        fret: fret,
+                        noteIndex: noteIndex,
+                        midiNote: midiNote
+                    });
+                    playTone(midiNote);
+                }
+                
+                state.chordBuilder.previewChord = null;
+                drawChordBuilderFretboard();
+                updateChordBuilder();
+            });
+        }
 
         // Key Viewer Setup
         NOTES_ENHARMONIC.forEach((note, index) => {
@@ -876,12 +2105,31 @@ document.addEventListener('DOMContentLoaded', () => {
             drawKeyViewerFretboard();
         });
 
+        toggleKeyViewerDegreeBtn.addEventListener('click', (e) => {
+            state.keyViewer.showDegree = !state.keyViewer.showDegree;
+            e.target.classList.toggle('active-mode', state.keyViewer.showDegree);
+            drawKeyViewerFretboard();
+        });
+
         keyViewerFretboardContainer.addEventListener('click', (e) => {
             const marker = e.target.closest('.scale-marker');
             if (marker && marker.dataset.midiNote) {
                 playTone(parseInt(marker.dataset.midiNote));
             }
         });
+
+        const generatePhraseBtn = document.getElementById('generate-phrase-btn');
+        if (generatePhraseBtn) {
+            generatePhraseBtn.addEventListener('click', () => {
+                if (state.keyViewer.isPlaying) return;
+                const approach = document.getElementById('phrase-approach-selector').value;
+                const root = state.keyViewer.rootNoteIndex;
+                const scaleDef = SCALES[state.keyViewer.scaleType];
+                
+                const phraseData = generatePhraseData(approach, root, scaleDef);
+                playPhrase(phraseData);
+            });
+        }
 
         keyViewerPlayScaleBtn.addEventListener('click', async () => {
             if (state.keyViewer.isPlaying || !state.isSoundEnabled || !audioContext) return;
@@ -994,6 +2242,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     drawKeyViewerFretboard();
                     // ルートUIのラベルも更新する
                     updateKeyViewerRootLabels();
+                } else if (state.currentQuiz === 'scaleFinder') {
+                    drawScaleFinderFretboard();
+                    updateScaleFinder();
+                } else if (state.currentQuiz === 'chordBuilder') {
+                    if (typeof drawChordBuilderFretboard === 'function') drawChordBuilderFretboard();
+                    if (typeof updateChordBuilder === 'function') updateChordBuilder();
                 } else {
                     generateQuestion();
                 }
