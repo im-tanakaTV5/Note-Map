@@ -576,12 +576,20 @@ document.addEventListener('DOMContentLoaded', () => {
         // ちょっと間隔を広げて見やすく
         scaleFinderResultsList.classList.replace('gap-2', 'gap-3');
 
+        const uniqueNoteIndicesArr = Array.from(new Set(validSelected.map(p => p.noteIndex)));
+
         const MAX_RESULTS = 15;
         let count = 0;
         for (const res of results) {
             if (count >= MAX_RESULTS) break;
 
             const isPerfectMatch = res.matchCount === res.totalSelectedNotes;
+            
+            const offScalePositions = validSelected.filter(p => !res.primaryScale.scalePitchClasses.includes(p.noteIndex));
+            const offScaleNames = offScalePositions.map(p => {
+                const noteName = noteArray[p.noteIndex].replace(/\(.+\)/, '');
+                return `${noteName}(${p.string + 1}弦${p.fret}f)`;
+            }).join(', ');
             
             const item = document.createElement('div');
             item.className = 'p-4 rounded-lg flex flex-col cursor-pointer transition-all duration-200 bg-white hover:bg-slate-50 border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 gap-1';
@@ -601,7 +609,31 @@ document.addEventListener('DOMContentLoaded', () => {
             if (res.subModesText) {
                 htmlStr += `<p class="text-xs text-gray-500 leading-relaxed mt-1">${res.subModesText}</p>`;
             }
+            if (!isPerfectMatch && offScaleNames) {
+                htmlStr += `<p class="text-xs text-red-500 font-medium mt-1">スケール外の音: <span class="font-bold">${offScaleNames}</span></p>`;
+            }
             item.innerHTML = htmlStr;
+            
+            item.addEventListener('mouseenter', () => {
+                const markers = scaleFinderFretboardContainer.querySelectorAll('.finder-marker');
+                markers.forEach(marker => {
+                    const noteIdx = parseInt(marker.dataset.noteIndex, 10);
+                    const circle = marker.querySelector('circle:nth-child(2)');
+                    const text = marker.querySelector('text');
+                    const questionMark = marker.querySelector('text:nth-child(4)');
+                    if (circle && !res.primaryScale.scalePitchClasses.includes(noteIdx)) {
+                        circle.setAttribute('fill', '#ef4444');
+                        circle.setAttribute('stroke', '#ef4444');
+                        circle.setAttribute('fill-opacity', '1');
+                        if (text) text.setAttribute('fill', '#ffffff');
+                        if (questionMark) questionMark.setAttribute('fill', '#ffffff');
+                    }
+                });
+            });
+
+            item.addEventListener('mouseleave', () => {
+                drawScaleFinderFretboard();
+            });
             
             item.addEventListener('click', () => {
                 state.keyViewer.rootNoteIndex = res.primaryScale.rootIndex;
