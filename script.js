@@ -111,6 +111,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const chordBuilderResultsList = document.getElementById('chord-builder-results-list');
     const chordBuilderEmptyMessage = document.getElementById('chord-builder-empty-message');
 
+    // MIDI Analyzer Elements
+    const tabMidiAnalyzer = document.getElementById('tab-midi-analyzer');
+    const midiAnalyzerContainer = document.getElementById('midi-analyzer-container');
+
     // Key Viewer DOM elements
     const keyViewerRootSelector = document.getElementById('key-viewer-root-selector');
     const keyViewerScaleSelector = document.getElementById('key-viewer-scale-selector');
@@ -169,6 +173,11 @@ document.addEventListener('DOMContentLoaded', () => {
             selectedKeyIndex: 0, // 0 = C
             selectedPositions: [], // { string, fret, noteIndex, midiNote } の配列
             previewChord: null // { rootIndex, type } または null
+        },
+
+        midiAnalyzer: {
+            selectedFile: null,
+            lastResult: null,
         }
     };
 
@@ -1870,18 +1879,20 @@ document.addEventListener('DOMContentLoaded', () => {
         tabKeyViewer.classList.remove('tab-active');
         if (tabScaleFinder) tabScaleFinder.classList.remove('tab-active');
         if (tabChordBuilder) tabChordBuilder.classList.remove('tab-active');
-        
+        if (tabMidiAnalyzer) tabMidiAnalyzer.classList.remove('tab-active');
+
         fretboardQuizContainer.classList.add('hidden');
         solfegeQuizContainer.classList.add('hidden');
         keyViewerContainer.classList.add('hidden');
         if (scaleFinderContainer) scaleFinderContainer.classList.add('hidden');
         if (chordBuilderContainer) chordBuilderContainer.classList.add('hidden');
+        if (midiAnalyzerContainer) midiAnalyzerContainer.classList.add('hidden');
         
         fretboardNextBtn.classList.add('hidden');
         solfegeNextBtn.classList.add('hidden');
 
-        // Key Viewer / Scale Finder / Chord Builder の場合は回答エリア・問題関連エリアを隠す
-        const isNotTools = tabName !== 'keyViewer' && tabName !== 'scaleFinder' && tabName !== 'chordBuilder';
+        // ツール系タブ (keyViewer, scaleFinder, chordBuilder, midiAnalyzer) は回答エリアを隠す
+        const isNotTools = tabName !== 'keyViewer' && tabName !== 'scaleFinder' && tabName !== 'chordBuilder' && tabName !== 'midiAnalyzer';
         answerArea.classList.toggle('hidden', !isNotTools);
         // hideSemitonesボタンはツール系では使わないため表示切り替え
         const semitonesBtn = document.getElementById('toggle-semitones-btn');
@@ -1910,6 +1921,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (chordBuilderContainer) chordBuilderContainer.classList.remove('hidden');
             if (typeof drawChordBuilderFretboard === 'function') drawChordBuilderFretboard();
             if (typeof updateChordBuilder === 'function') updateChordBuilder();
+        } else if (tabName === 'midiAnalyzer') {
+            if (tabMidiAnalyzer) tabMidiAnalyzer.classList.add('tab-active');
+            if (midiAnalyzerContainer) midiAnalyzerContainer.classList.remove('hidden');
+            checkMidiServerAndInit();
         }
     }
 
@@ -1971,6 +1986,7 @@ document.addEventListener('DOMContentLoaded', () => {
         tabKeyViewer.addEventListener('click', (e) => { e.preventDefault(); switchTab('keyViewer'); });
         if (tabScaleFinder) tabScaleFinder.addEventListener('click', (e) => { e.preventDefault(); switchTab('scaleFinder'); });
         if (tabChordBuilder) tabChordBuilder.addEventListener('click', (e) => { e.preventDefault(); switchTab('chordBuilder'); });
+        if (tabMidiAnalyzer) tabMidiAnalyzer.addEventListener('click', (e) => { e.preventDefault(); switchTab('midiAnalyzer'); });
 
         if (chordBuilderClearBtn) {
             chordBuilderClearBtn.addEventListener('click', () => {
@@ -2280,6 +2296,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (state.currentQuiz === 'chordBuilder') {
                     if (typeof drawChordBuilderFretboard === 'function') drawChordBuilderFretboard();
                     if (typeof updateChordBuilder === 'function') updateChordBuilder();
+                } else if (state.currentQuiz === 'midiAnalyzer') {
+                    // 音名切り替えはMIDI解析タブに影響しない
                 } else {
                     generateQuestion();
                 }
@@ -2297,6 +2315,272 @@ document.addEventListener('DOMContentLoaded', () => {
 
         switchTab(state.currentQuiz);
     }
+
+    // ══════════════════════════════════════════════════════════
+    //  MIDI 解析タブ (AutoGuitarAnalyzer 統合)
+    // ══════════════════════════════════════════════════════════
+
+    let _midiServerAvailable = null; // null = 未確認, true/false = 確認済み
+
+    function checkMidiServerAndInit() {
+        const warning = document.getElementById('midi-server-warning');
+        if (_midiServerAvailable === true) {
+            if (warning) warning.classList.add('hidden');
+            setupMidiAnalyzerEvents();
+            return;
+        }
+        fetch('/api/status', { signal: AbortSignal.timeout(3000) })
+            .then(r => r.json())
+            .then(data => {
+                _midiServerAvailable = true;
+                if (warning) warning.classList.add('hidden');
+                setupMidiAnalyzerEvents();
+                if (!data.available) {
+                    _showMidiError('パイプラインが利用できません: ' + data.error);
+                }
+            })
+            .catch(() => {
+                _midiServerAvailable = false;
+                if (warning) warning.classList.remove('hidden');
+            });
+    }
+
+    let _midiEventsSetup = false;
+    function setupMidiAnalyzerEvents() {
+        if (_midiEventsSetup) return;
+        _midiEventsSetup = true;
+
+        const dropZone   = document.getElementById('midi-drop-zone');
+        const fileInput  = document.getElementById('midi-file-input');
+        const analyzeBtn = document.getElementById('midi-analyze-btn');
+        const resetBtn   = document.getElementById('midi-reset-btn');
+        const retryBtn   = document.getElementById('midi-retry-btn');
+        const downloadBtn = document.getElementById('midi-download-btn');
+        const gotoScaleBtn = document.getElementById('midi-goto-scale-btn');
+
+        // ドラッグ&ドロップ
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) _selectMidiFile(file);
+        });
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', e => {
+            if (e.target.files[0]) _selectMidiFile(e.target.files[0]);
+        });
+
+        analyzeBtn.addEventListener('click', _runMidiAnalysis);
+        resetBtn.addEventListener('click', _resetMidiAnalyzer);
+        retryBtn.addEventListener('click', _resetMidiAnalyzer);
+
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', () => {
+                if (!state.midiAnalyzer.lastResult) return;
+                const json = JSON.stringify(state.midiAnalyzer.lastResult, null, 2);
+                const blob = new Blob([json], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'guitar_analysis.json';
+                a.click();
+            });
+        }
+
+        if (gotoScaleBtn) {
+            gotoScaleBtn.addEventListener('click', () => {
+                const result = state.midiAnalyzer.lastResult;
+                if (!result) return;
+                const keyStr = result.song_meta.key; // e.g. "B Major" or "C# minor"
+                const parts = keyStr.trim().split(/\s+/);
+                const rootName = parts[0];
+                const noteArr = NOTES_ENHARMONIC;
+                // 通常表記 (#/b) → NOTES_ENHARMONIC のインデックスを探す
+                const SHARP_TO_ENHARMONIC = { 'C#': 1,'D#': 3,'F#': 6,'G#': 8,'A#': 10 };
+                let rootIdx = noteArr.findIndex(n => n.split('(')[0] === rootName);
+                if (rootIdx === -1) rootIdx = SHARP_TO_ENHARMONIC[rootName] ?? 0;
+                // スケールタイプ
+                const isMajor = keyStr.toLowerCase().includes('major');
+                state.keyViewer.rootNoteIndex = rootIdx;
+                state.keyViewer.scaleType = isMajor ? 'major' : 'minor';
+                switchTab('keyViewer');
+            });
+        }
+    }
+
+    function _selectMidiFile(file) {
+        const allowed = ['.wav', '.mp3', '.flac', '.aiff', '.ogg'];
+        const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+        if (!allowed.includes(ext)) {
+            _showMidiError(`未対応のファイル形式です: ${ext}\n対応形式: ${allowed.join(', ')}`);
+            return;
+        }
+        state.midiAnalyzer.selectedFile = file;
+
+        document.getElementById('midi-file-name').textContent = file.name;
+        document.getElementById('midi-file-size').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+        document.getElementById('midi-drop-zone').classList.add('hidden');
+        document.getElementById('midi-file-info').classList.remove('hidden');
+        document.getElementById('midi-status-section').classList.add('hidden');
+        document.getElementById('midi-error-section').classList.add('hidden');
+        document.getElementById('midi-results-section').classList.add('hidden');
+    }
+
+    function _resetMidiAnalyzer() {
+        state.midiAnalyzer.selectedFile = null;
+        state.midiAnalyzer.lastResult = null;
+        document.getElementById('midi-drop-zone').classList.remove('hidden');
+        document.getElementById('midi-file-info').classList.add('hidden');
+        document.getElementById('midi-status-section').classList.add('hidden');
+        document.getElementById('midi-error-section').classList.add('hidden');
+        document.getElementById('midi-results-section').classList.add('hidden');
+        const fi = document.getElementById('midi-file-input');
+        if (fi) fi.value = '';
+    }
+
+    async function _runMidiAnalysis() {
+        const file = state.midiAnalyzer.selectedFile;
+        if (!file) return;
+
+        document.getElementById('midi-file-info').classList.add('hidden');
+        document.getElementById('midi-status-section').classList.remove('hidden');
+        document.getElementById('midi-error-section').classList.add('hidden');
+        document.getElementById('midi-results-section').classList.add('hidden');
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/api/analyze', { method: 'POST', body: formData });
+            const data = await res.json();
+            document.getElementById('midi-status-section').classList.add('hidden');
+
+            if (!res.ok || data.error) {
+                _showMidiError(data.error || `サーバーエラー (${res.status})`);
+                return;
+            }
+
+            state.midiAnalyzer.lastResult = data;
+            _renderMidiResults(data);
+        } catch (err) {
+            document.getElementById('midi-status-section').classList.add('hidden');
+            _showMidiError('通信エラー: ' + err.message);
+        }
+    }
+
+    function _showMidiError(msg) {
+        document.getElementById('midi-error-text').textContent = msg;
+        document.getElementById('midi-error-section').classList.remove('hidden');
+        document.getElementById('midi-file-info').classList.add('hidden');
+        document.getElementById('midi-status-section').classList.add('hidden');
+        document.getElementById('midi-results-section').classList.add('hidden');
+    }
+
+    function _renderMidiResults(data) {
+        // ソングメタ
+        document.getElementById('midi-result-key').textContent   = data.song_meta.key;
+        document.getElementById('midi-result-tempo').textContent = data.song_meta.tempo;
+
+        // トラック一覧
+        const container = document.getElementById('midi-tracks-container');
+        container.innerHTML = '';
+        (data.guitar_tracks || []).forEach(track => {
+            container.appendChild(_buildTrackCard(track, data.song_meta.key));
+        });
+
+        document.getElementById('midi-results-section').classList.remove('hidden');
+    }
+
+    function _buildTrackCard(track, songKey) {
+        const card = document.createElement('div');
+        card.className = 'midi-track-card';
+
+        const isLead = track.detected_role === 'Lead';
+        const roleCls = isLead ? 'midi-role-lead' : 'midi-role-backing';
+        const roleJa  = isLead ? 'リード' : 'バッキング';
+
+        // ヘッダー（クリックで展開/折りたたみ）
+        const header = document.createElement('div');
+        header.className = 'midi-track-header';
+        header.innerHTML = `
+            <span class="font-bold text-gray-800 text-sm">${track.track_id}</span>
+            <span class="midi-role-badge ${roleCls}">${roleJa}</span>
+            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Pan: ${track.pan_position}</span>
+            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Capo: ${track.capo}</span>
+            ${track.estimated_form ? `<span class="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">${track.estimated_form}</span>` : ''}
+            <span class="ml-auto text-xs text-gray-400">${(track.events || []).length} ノート</span>
+            <svg class="midi-chevron w-4 h-4 text-gray-400 ml-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>`;
+
+        // ボディ
+        const body = document.createElement('div');
+        body.className = 'p-4';
+
+        const events = track.events || [];
+        if (events.length === 0) {
+            body.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">ノートイベントなし</p>';
+        } else {
+            const PREVIEW = 30;
+            const showAll = events.length <= PREVIEW;
+            body.innerHTML = _buildEventsTable(events, showAll ? events.length : PREVIEW);
+            if (!showAll) {
+                const more = document.createElement('button');
+                more.className = 'midi-show-more-btn';
+                more.textContent = `残り ${events.length - PREVIEW} ノートを表示`;
+                more.addEventListener('click', () => {
+                    body.innerHTML = _buildEventsTable(events, events.length);
+                });
+                body.appendChild(more);
+            }
+        }
+
+        // 折りたたみ
+        header.addEventListener('click', () => {
+            const hidden = body.classList.toggle('hidden');
+            header.querySelector('.midi-chevron').style.transform = hidden ? 'rotate(-90deg)' : '';
+        });
+
+        card.appendChild(header);
+        card.appendChild(body);
+        return card;
+    }
+
+    function _buildEventsTable(events, count) {
+        const rows = events.slice(0, count).map(ev => {
+            const degCls = _degreeClass(ev.degree);
+            return `<tr>
+                <td class="text-gray-400 text-xs">${ev.time_sec.toFixed(2)}s</td>
+                <td class="font-semibold text-gray-800">${ev.actual_note}</td>
+                <td class="midi-tab-cell">${ev.tab.string}弦 / ${ev.tab.fret}f</td>
+                <td><span class="midi-degree ${degCls}">${ev.degree}</span></td>
+            </tr>`;
+        }).join('');
+        return `<div class="midi-events-scroll"><table class="midi-events-table">
+            <thead><tr>
+                <th>時刻</th><th>音</th><th>TAB</th><th>度数</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table></div>`;
+    }
+
+    function _degreeClass(degree) {
+        if (!degree) return 'midi-deg-other';
+        const d = degree.toLowerCase();
+        if (d.includes('unison') || d.includes('root')) return 'midi-deg-root';
+        if (d.includes('2nd') || d.includes('9th'))      return 'midi-deg-2nd';
+        if (d.includes('3rd'))                            return 'midi-deg-3rd';
+        if (d.includes('4th') || d.includes('11th'))     return 'midi-deg-4th';
+        if (d.includes('tritone') || d.includes('b5'))   return 'midi-deg-tritone';
+        if (d.includes('5th'))                            return 'midi-deg-5th';
+        if (d.includes('6th') || d.includes('13th'))     return 'midi-deg-6th';
+        if (d.includes('7th'))                            return 'midi-deg-7th';
+        return 'midi-deg-other';
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  / MIDI 解析タブ
+    // ══════════════════════════════════════════════════════════
 
     function updateKeyViewerRootLabels() {
         const noteArray = state.noteNameSystem === 'solfege' ? NOTES_SOLFEGE_ENHARMONIC : NOTES_ENHARMONIC;

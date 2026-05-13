@@ -28,7 +28,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+JP:wght@400;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=15">
+    <link rel="stylesheet" href="style.css?v=16">
 </head>
 
 <body class="bg-gray-100 text-gray-800 flex flex-col items-center min-h-screen p-4">
@@ -46,6 +46,7 @@
                 <button id="tab-key-viewer" class="tab" role="tab" aria-selected="false">スケール確認</button>
                 <button id="tab-scale-finder" class="tab" role="tab" aria-selected="false">スケール判定</button>
                 <button id="tab-chord-builder" class="tab" role="tab" aria-selected="false">コード作成</button>
+                <button id="tab-midi-analyzer" class="tab" role="tab" aria-selected="false">MIDI解析</button>
             </nav>
         </div>
 
@@ -330,6 +331,108 @@
                 </div>
             </div>
 
+            <!-- ===== MIDI解析（AutoGuitarAnalyzer） ===== -->
+            <div id="midi-analyzer-container" class="hidden">
+
+                <!-- サーバー未起動の警告 -->
+                <div id="midi-server-warning" class="hidden mb-4 bg-amber-50 border border-amber-300 rounded-lg p-4">
+                    <p class="text-amber-800 font-semibold text-sm">
+                        ⚠️ バックエンドサーバーが必要です。ターミナルで以下を実行してからページを再読み込みしてください：
+                    </p>
+                    <code class="block mt-2 bg-amber-100 text-amber-900 px-3 py-2 rounded text-xs font-mono">python server.py</code>
+                </div>
+
+                <!-- アップロードセクション -->
+                <div id="midi-upload-section">
+                    <div id="midi-drop-zone" class="midi-drop-zone">
+                        <svg class="w-14 h-14 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                        </svg>
+                        <p class="text-lg font-semibold text-gray-600 mb-1">音楽ファイルをここにドロップ</p>
+                        <p class="text-sm text-gray-400 mb-4">または</p>
+                        <label class="cursor-pointer">
+                            <span class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-6 rounded-md transition duration-200 shadow-sm">ファイルを選択</span>
+                            <input id="midi-file-input" type="file" accept=".wav,.mp3,.flac,.aiff,.ogg" class="hidden">
+                        </label>
+                        <p class="text-xs text-gray-400 mt-4">対応形式: WAV / MP3 / FLAC / AIFF / OGG（最大 100MB）</p>
+                    </div>
+
+                    <div id="midi-file-info" class="hidden mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div class="flex items-center space-x-3">
+                            <svg class="w-9 h-9 text-indigo-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 3a1 1 0 00-1.447-.894L8.763 6H5a3 3 0 000 6h.28l1.771 5.316A1 1 0 008 18h1a1 1 0 001-1v-4.382l6.553 3.276A1 1 0 0018 15V3z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div>
+                                <p id="midi-file-name" class="font-semibold text-gray-800 text-sm break-all"></p>
+                                <p id="midi-file-size" class="text-xs text-gray-500"></p>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 flex-shrink-0">
+                            <button id="midi-analyze-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-5 rounded-md transition duration-200 shadow-sm flex items-center gap-2 text-sm">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                                解析開始
+                            </button>
+                            <button id="midi-reset-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-md transition duration-200 text-sm">リセット</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 解析中インジケーター -->
+                <div id="midi-status-section" class="hidden mt-6">
+                    <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-8 text-center">
+                        <div class="midi-spinner mx-auto mb-5"></div>
+                        <p class="text-indigo-700 font-bold text-xl mb-2">解析中...</p>
+                        <p class="text-gray-500 text-sm mb-5">Demucs 音源分離 → MIDI変換 → TAB解析 を実行中です。<br>楽曲の長さやご使用の環境によっては <span class="font-semibold">数分〜10分程度</span> かかる場合があります。</p>
+                        <div class="flex justify-center flex-wrap gap-2">
+                            <span class="midi-phase-badge" id="midi-phase-1">Phase 1: 音源分離</span>
+                            <span class="midi-phase-badge" id="midi-phase-2">Phase 2: Pan 解析</span>
+                            <span class="midi-phase-badge" id="midi-phase-3">Phase 3: MIDI 変換</span>
+                            <span class="midi-phase-badge" id="midi-phase-4">Phase 4: TAB 解析</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- エラー表示 -->
+                <div id="midi-error-section" class="hidden mt-6">
+                    <div class="bg-red-50 border border-red-300 rounded-lg p-5">
+                        <h4 class="text-red-700 font-bold mb-2 flex items-center text-base">
+                            <svg class="w-5 h-5 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                            エラーが発生しました
+                        </h4>
+                        <p id="midi-error-text" class="text-red-600 text-sm whitespace-pre-wrap"></p>
+                        <button id="midi-retry-btn" class="mt-4 bg-red-600 hover:bg-red-700 text-white font-semibold py-1.5 px-4 rounded-md text-sm transition duration-200">別のファイルで再試行</button>
+                    </div>
+                </div>
+
+                <!-- 解析結果 -->
+                <div id="midi-results-section" class="hidden mt-6">
+                    <!-- ソングメタ情報 -->
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-5 text-center">
+                            <p class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">楽曲キー</p>
+                            <p id="midi-result-key" class="text-4xl font-bold text-blue-700">—</p>
+                            <button id="midi-goto-scale-btn" class="mt-3 text-xs bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded-full transition duration-200">スケール確認 →</button>
+                        </div>
+                        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5 text-center">
+                            <p class="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2">テンポ</p>
+                            <p id="midi-result-tempo" class="text-4xl font-bold text-emerald-700">—</p>
+                            <p class="text-xs text-emerald-400 mt-1">BPM</p>
+                        </div>
+                    </div>
+
+                    <!-- ギタートラック一覧 -->
+                    <div id="midi-tracks-container" class="flex flex-col gap-5"></div>
+
+                    <!-- ダウンロード -->
+                    <div class="text-center mt-6 pt-6 border-t border-gray-100">
+                        <button id="midi-download-btn" class="bg-gray-700 hover:bg-gray-900 text-white font-semibold py-2.5 px-6 rounded-md inline-flex items-center gap-2 transition duration-200 shadow-sm">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                            解析結果 JSON をダウンロード
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- 共通オプション -->
             <div id="common-options-area" class="text-center mt-8 pt-6 border-t">
                 <h3 class="text-base font-semibold mb-3 text-gray-500 uppercase tracking-wider">共通オプション</h3>
@@ -364,7 +467,7 @@
         class="fretboard-loupe hidden pointer-events-none fixed bg-white overflow-hidden rounded-xl border-[3px] border-gray-400 shadow-2xl z-[9999]">
     </div>
 
-    <script src="./script.js?v=15"></script>
+    <script src="./script.js?v=16"></script>
 </body>
 
 </html>

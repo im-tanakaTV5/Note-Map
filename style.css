@@ -163,3 +163,203 @@ body {
     font-weight: 900 !important;
     transition: all 0.1s ease-out;
 }
+
+/* ───────────────────────────────────────────────
+   MIDI解析タブ
+─────────────────────────────────────────────── */
+
+/* ドロップゾーン */
+.midi-drop-zone {
+    border: 2px dashed #d1d5db;
+    border-radius: 0.75rem;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.midi-drop-zone:hover {
+    border-color: #6366f1;
+    background-color: #f5f3ff;
+}
+
+.midi-drop-zone.dragover {
+    border-color: #6366f1;
+    background-color: #ede9fe;
+    transform: scale(1.01);
+}
+
+/* スピナー */
+@keyframes midi-spin {
+    to { transform: rotate(360deg); }
+}
+
+.midi-spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #c7d2fe;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: midi-spin 0.9s linear infinite;
+}
+
+/* フェーズバッジ */
+.midi-phase-badge {
+    display: inline-block;
+    padding: 0.3rem 0.85rem;
+    border-radius: 9999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background-color: #e0e7ff;
+    color: #4338ca;
+    border: 1px solid #c7d2fe;
+    letter-spacing: 0.03em;
+}
+
+.midi-phase-badge.active {
+    background-color: #6366f1;
+    color: #ffffff;
+    border-color: #6366f1;
+    animation: midi-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes midi-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.65; }
+}
+
+/* トラックカード */
+.midi-track-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.midi-track-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.875rem 1.25rem;
+    background-color: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+    cursor: pointer;
+    user-select: none;
+}
+
+.midi-track-header:hover {
+    background-color: #f3f4f6;
+}
+
+.midi-role-badge {
+    display: inline-block;
+    padding: 0.2rem 0.7rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.midi-role-lead {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+}
+
+.midi-role-backing {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+/* 度数カラーバッジ */
+.midi-degree {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.midi-deg-root    { background: #dbeafe; color: #1d4ed8; }
+.midi-deg-2nd     { background: #f3f4f6; color: #374151; }
+.midi-deg-3rd     { background: #dcfce7; color: #15803d; }
+.midi-deg-4th     { background: #ccfbf1; color: #0f766e; }
+.midi-deg-tritone { background: #fee2e2; color: #b91c1c; }
+.midi-deg-5th     { background: #ede9fe; color: #6d28d9; }
+.midi-deg-6th     { background: #fef9c3; color: #854d0e; }
+.midi-deg-7th     { background: #ffedd5; color: #c2410c; }
+.midi-deg-other   { background: #f3f4f6; color: #6b7280; }
+
+/* イベントテーブル */
+.midi-events-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.midi-events-table th {
+    position: sticky;
+    top: 0;
+    background-color: #f9fafb;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-weight: 700;
+    color: #6b7280;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.midi-events-table td {
+    padding: 0.45rem 0.75rem;
+    border-bottom: 1px solid #f3f4f6;
+    color: #374151;
+    vertical-align: middle;
+}
+
+.midi-events-table tr:last-child td {
+    border-bottom: none;
+}
+
+.midi-events-table tr:hover td {
+    background-color: #fafafa;
+}
+
+.midi-events-scroll {
+    max-height: 360px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+}
+
+/* TAB セル */
+.midi-tab-cell {
+    font-family: 'Inter', monospace;
+    font-weight: 600;
+    color: #4f46e5;
+    white-space: nowrap;
+}
+
+/* もっと見るボタン */
+.midi-show-more-btn {
+    display: block;
+    width: 100%;
+    padding: 0.6rem;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #6366f1;
+    background-color: #f5f3ff;
+    border: 1px solid #c7d2fe;
+    border-radius: 0 0 0.5rem 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.midi-show-more-btn:hover {
+    background-color: #ede9fe;
+}
