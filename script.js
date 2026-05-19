@@ -53,6 +53,18 @@ document.addEventListener('DOMContentLoaded', () => {
         minor6: { name: 'm6', intervals: [0, 3, 7, 9], weight: 85 }
     };
 
+    // --- CAGEDシステム定義 ---
+    // 各フォームのフレット範囲: 6弦上のルート音フレットからのオフセット
+    // メジャースケールのボックスパターンから導出
+    const CAGED_FORMS_ORDER = ['E', 'D', 'C', 'A', 'G'];
+    const CAGED_FORMS = {
+        E: { name: 'E Form', color: '#3b82f6', offsetMin: -1, offsetMax: 2 },
+        D: { name: 'D Form', color: '#a855f7', offsetMin: 2,  offsetMax: 5 },
+        C: { name: 'C Form', color: '#ef4444', offsetMin: 4,  offsetMax: 7 },
+        A: { name: 'A Form', color: '#f59e0b', offsetMin: 7,  offsetMax: 10 },
+        G: { name: 'G Form', color: '#22c55e', offsetMin: 9,  offsetMax: 12 },
+    };
+
     // --- 音声関連の定数 ---
     const BASE_MIDI_NOTES = [64, 59, 55, 50, 45, 40];
     let audioContext;
@@ -130,6 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const noteFilterCloseBtn = document.getElementById('note-filter-close-btn');
     const noteFilterClearBtn = document.getElementById('note-filter-clear-btn');
     const toggleKeyViewerDegreeBtn = document.getElementById('toggle-key-viewer-degree-btn'); // 追加
+    const keyViewerCagedSelector = document.getElementById('key-viewer-caged-selector');
 
 
     // --- アプリケーションの状態 ---
@@ -162,7 +175,8 @@ document.addEventListener('DOMContentLoaded', () => {
             rootNoteIndex: 0, // 0 = C
             scaleType: 'major',
             isPlaying: false,
-            showDegree: false
+            showDegree: false,
+            cagedForm: null  // null = 全体表示, 'C'|'A'|'G'|'E'|'D' = 特定フォーム
         },
 
         scaleFinder: {
@@ -263,7 +277,31 @@ document.addEventListener('DOMContentLoaded', () => {
         return '#60a5fa'; // その他(テンション等): 薄青
     }
 
-    // --- フレーズ生成・再生エンジン ---
+    // --- CAGEDフォーム フレット範囲計算 ---
+    function getCagedFretRanges(rootNoteIndex, formName) {
+        const form = CAGED_FORMS[formName];
+        // 6弦上でルート音が来る最小フレット (0-11)
+        const rootFret6 = (rootNoteIndex - TUNING[5] + 12) % 12;
+        const ranges = [];
+        // オクターブ繰り返しで全指板をカバー
+        for (let octave = 0; octave <= 2; octave++) {
+            const start = rootFret6 + form.offsetMin + octave * 12;
+            const end = rootFret6 + form.offsetMax + octave * 12;
+            if (start > KEY_VIEWER_FRET_COUNT) break;
+            ranges.push({
+                start: Math.max(0, start),
+                end: Math.min(KEY_VIEWER_FRET_COUNT, end)
+            });
+        }
+        return ranges;
+    }
+
+    // フレットがCAGEDフォーム範囲内かどうかチェック
+    function isFretInCagedRanges(fret, ranges) {
+        return ranges.some(r => fret >= r.start && fret <= r.end);
+    }
+
+
     function getPossiblePositionsForMidi(midiNote) {
         const positions = [];
         for (let s = 0; s < 6; s++) {
@@ -601,25 +639,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join(', ');
             
             const item = document.createElement('div');
-            item.className = 'p-4 rounded-lg flex flex-col cursor-pointer transition-all duration-200 bg-white hover:bg-slate-50 border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 gap-1';
-            
-            let colorCls = isPerfectMatch ? 'text-green-600' : 'text-orange-500';
-            
+            item.className = 'p-4 rounded-lg flex flex-col cursor-pointer transition-all duration-200 bg-[#171717] hover:bg-[#1e1e1e] border border-[#222222] hover:border-[#3a3a3a] gap-1';
+
+            let colorCls = isPerfectMatch ? 'text-green-400' : 'text-orange-400';
+
             let htmlStr = `
                 <div class="flex justify-between items-start">
-                    <h3 class="font-bold text-lg text-gray-800">${res.mainTitle}</h3>
+                    <h3 class="font-bold text-lg text-white">${res.mainTitle}</h3>
                     <div class="text-right ml-2 flex-shrink-0 text-right">
-                        <div class="font-bold whitespace-nowrap text-indigo-600">スコア: ${res.score} <span class="text-xs text-gray-400">/ ${maxPossibleScore}</span></div>
+                        <div class="font-bold whitespace-nowrap text-[#aaaaaa]">スコア: ${res.score} <span class="text-xs text-[#555555]">/ ${maxPossibleScore}</span></div>
                         <div class="text-xs ${colorCls} mt-1">${res.matchCount}/${res.totalSelectedNotes}音一致
-                        ${isPerfectMatch ? '<span class="ml-1 text-[10px] bg-green-100 text-green-800 px-1 py-0.5 rounded-sm inline-block align-middle transform -translate-y-px">全音包含</span>' : ''}</div>
+                        ${isPerfectMatch ? '<span class="ml-1 text-[10px] bg-green-900 text-green-400 px-1 py-0.5 rounded-sm inline-block align-middle transform -translate-y-px">全音包含</span>' : ''}</div>
                     </div>
                 </div>
             `;
             if (res.subModesText) {
-                htmlStr += `<p class="text-xs text-gray-500 leading-relaxed mt-1">${res.subModesText}</p>`;
+                htmlStr += `<p class="text-xs text-[#666666] leading-relaxed mt-1">${res.subModesText}</p>`;
             }
             if (!isPerfectMatch && offScaleNames) {
-                htmlStr += `<p class="text-xs text-red-500 font-medium mt-1">スケール外の音: <span class="font-bold">${offScaleNames}</span></p>`;
+                htmlStr += `<p class="text-xs text-red-400 font-medium mt-1">スケール外の音: <span class="font-bold">${offScaleNames}</span></p>`;
             }
             item.innerHTML = htmlStr;
             
@@ -725,7 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const marker = document.createElementNS(svgNS, 'circle');
                     const markerX = x - FRET_WIDTH / 2; let markerY = fretboardHeight / 2;
                     marker.setAttribute('cx', markerX); marker.setAttribute('cy', markerY);
-                    marker.setAttribute('r', '6'); 
+                    marker.setAttribute('r', '6');
                     marker.setAttribute('fill', '#000000');
                     marker.setAttribute('fill-opacity', '0.6');
                     if (i === 12 || i === 24) {
@@ -923,7 +961,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const name = noteArray[pitch].replace(/\(.+\)/, '');
             const interval = (pitch - selectedKeyIndex + 12) % 12;
             const degree = getDegreeString(interval);
-            return `<span class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-sm">${name} <span class="text-xs text-indigo-500">(${degree})</span></span>`;
+            return `<span class="bg-[#0e1e2e] text-[#7aaece] px-2 py-0.5 rounded text-sm border border-[#1a3a52]">${name} <span class="text-xs text-[#5a8ab0]">(${degree})</span></span>`;
         }).join('');
         chordBuilderSelectedNotesEl.innerHTML = pitchHtml;
 
@@ -989,11 +1027,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const name = noteArray[c.noteIndex].replace(/\(.+\)/, '');
                 const interval = (c.noteIndex - res.rootIndex + 12) % 12;
                 const degree = getDegreeString(interval);
-                return `<span class="bg-gray-100 text-gray-700 font-semibold px-1.5 py-0.5 rounded text-xs">${c.string + 1}弦 ${c.fret}F (${degree})</span>`;
+                return `<span class="bg-[#252525] text-[#aaaaaa] font-semibold px-1.5 py-0.5 rounded text-xs border border-[#333333]">${c.string + 1}弦 ${c.fret}F (${degree})</span>`;
             });
 
             const item = document.createElement('div');
-            item.className = 'p-4 rounded-lg flex flex-col cursor-pointer transition-all duration-200 bg-white hover:bg-indigo-50 border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-300 gap-2';
+            item.className = 'p-4 rounded-lg flex flex-col cursor-pointer transition-all duration-200 bg-[#171717] hover:bg-[#1e1e1e] border border-[#222222] hover:border-[#3a3a3a] gap-2';
             
             item.addEventListener('mouseenter', () => {
                 state.chordBuilder.previewChord = {
@@ -1009,18 +1047,18 @@ document.addEventListener('DOMContentLoaded', () => {
             let htmlStr = `
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center">
                     <div>
-                        <h3 class="font-bold text-lg text-gray-800">${rootName} ${res.chordDef.name}</h3>
+                        <h3 class="font-bold text-lg text-white">${rootName} ${res.chordDef.name}</h3>
                         <div class="mt-1 flex flex-wrap gap-1 items-center">
-                            ${res.combo.length === 0 ? '<span class="text-green-600 font-bold text-xs bg-green-50 px-2 py-1 rounded">完成形</span>' : '<span class="text-xs text-gray-500 mr-1">追加ポジション:</span>' + comboTextNodes.join('')}
+                            ${res.combo.length === 0 ? '<span class="text-green-400 font-bold text-xs bg-green-900 px-2 py-1 rounded">完成形</span>' : '<span class="text-xs text-[#666666] mr-1">追加ポジション:</span>' + comboTextNodes.join('')}
                         </div>
                     </div>
                     <div class="flex gap-2 mt-3 sm:mt-0 w-full sm:w-auto">
-                        <button class="play-btn bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold py-1.5 px-3 rounded text-sm flex-1 sm:flex-none flex items-center justify-center transition">
+                        <button class="play-btn bg-[#1e1e1e] hover:bg-[#282828] text-[#aaaaaa] font-bold py-1.5 px-3 rounded text-sm flex-1 sm:flex-none flex items-center justify-center transition border border-[#2e2e2e]">
                             <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
                             試聴する
                         </button>
                         ${res.combo.length > 0 ? `
-                        <button class="adopt-btn bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 rounded text-sm flex-1 sm:flex-none flex items-center justify-center transition">
+                        <button class="adopt-btn bg-white hover:bg-[#e0e0e0] text-black font-bold py-1.5 px-3 rounded text-sm flex-1 sm:flex-none flex items-center justify-center transition">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                             採用する
                         </button>` : ''}
@@ -1052,7 +1090,7 @@ document.addEventListener('DOMContentLoaded', () => {
             count++;
         }
         if (results.length === 0) {
-            chordBuilderResultsList.innerHTML = '<p class="text-gray-500 text-center py-4">現在の構成音を含むコードのポジションが見つかりません。別の音を選択してください。</p>';
+            chordBuilderResultsList.innerHTML = '<p class="text-[#555555] text-center py-4">現在の構成音を含むコードのポジションが見つかりません。別の音を選択してください。</p>';
         }
     }
 
@@ -1431,6 +1469,56 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         svg.appendChild(fretNumGroup);
 
+        // --- CAGED フォーム範囲のオーバーレイ描画 ---
+        const activeCaged = state.keyViewer.cagedForm;
+        let cagedRanges = null;
+        if (activeCaged) {
+            cagedRanges = getCagedFretRanges(rootNoteIndex, activeCaged);
+            const formColor = CAGED_FORMS[activeCaged].color;
+            
+            for (const range of cagedRanges) {
+                const overlayX = range.start === 0 ? 0 : (range.start - 0.5) * FRET_WIDTH;
+                const overlayW = (range.end + 0.5) * FRET_WIDTH - overlayX;
+                
+                const overlay = document.createElementNS(svgNS, 'rect');
+                overlay.setAttribute('x', overlayX);
+                overlay.setAttribute('y', 0);
+                overlay.setAttribute('width', overlayW);
+                overlay.setAttribute('height', fretboardHeight);
+                overlay.setAttribute('fill', formColor);
+                overlay.setAttribute('opacity', '0.08');
+                overlay.setAttribute('rx', '6');
+                overlay.classList.add('caged-zone-overlay');
+                svg.appendChild(overlay);
+                
+                // フォーム範囲の枠線
+                const border = document.createElementNS(svgNS, 'rect');
+                border.setAttribute('x', overlayX);
+                border.setAttribute('y', 0);
+                border.setAttribute('width', overlayW);
+                border.setAttribute('height', fretboardHeight);
+                border.setAttribute('fill', 'none');
+                border.setAttribute('stroke', formColor);
+                border.setAttribute('stroke-width', '2');
+                border.setAttribute('stroke-opacity', '0.4');
+                border.setAttribute('rx', '6');
+                border.style.pointerEvents = 'none';
+                svg.appendChild(border);
+                
+                // フォーム名ラベル
+                const label = document.createElementNS(svgNS, 'text');
+                label.setAttribute('x', overlayX + overlayW / 2);
+                label.setAttribute('y', fretboardHeight + FRET_NUM_AREA_HEIGHT - 2);
+                label.setAttribute('fill', formColor);
+                label.setAttribute('font-size', '12');
+                label.setAttribute('font-weight', '700');
+                label.setAttribute('text-anchor', 'middle');
+                label.setAttribute('opacity', '0.8');
+                label.textContent = CAGED_FORMS[activeCaged].name;
+                svg.appendChild(label);
+            }
+        }
+
         // --- 全弦・全フレットを走査して対象ノートをマッピング ---
         const noteArray = state.noteNameSystem === 'solfege' ? NOTES_SOLFEGE_ENHARMONIC : NOTES_ENHARMONIC;
 
@@ -1441,42 +1529,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // このフレットの音がスケールに含まれているか？
                 if (scaleNoteIndices.includes(currentNoteIndex)) {
+                    // CAGED フォームが選択されている場合、範囲外の音は描画しない
+                    if (activeCaged && cagedRanges && !isFretInCagedRanges(fret, cagedRanges)) {
+                        continue;
+                    }
+
                     const isRoot = currentNoteIndex === rootNoteIndex;
                     const cx = fret === 0 ? (0.25) * FRET_WIDTH : fret * FRET_WIDTH;
                     const cy = (stringIdx + 0.5) * FRET_HEIGHT;
 
                     const g = document.createElementNS(svgNS, "g");
                     g.classList.add('scale-marker');
-                    // クリックで音を鳴らすためのデータ属性
                     g.dataset.midiNote = BASE_MIDI_NOTES[stringIdx] + fret;
                     g.dataset.string = stringIdx;
                     g.dataset.fret = fret;
-                    // iOS等でのタッチ・クリック反応エリア
                     g.style.cursor = 'pointer';
-                    // Safari / 旧ブラウザ等で確実に中心を原点にするためインライン指定
                     g.style.transformOrigin = `${cx}px ${cy}px`;
 
                     const circle = document.createElementNS(svgNS, 'circle');
                     circle.setAttribute('cx', cx); circle.setAttribute('cy', cy);
-                    // 初期サイズを保持
                     const defaultR = FRET_HEIGHT * 0.4;
                     circle.setAttribute('r', defaultR);
-                    // SVGのtransition (属性値の変更にアニメーションを効かせる)
                     circle.style.transition = 'all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)';
-                    // 色分けとテキスト表示の制御用インターバル
                     const interval = (currentNoteIndex - rootNoteIndex + 12) % 12;
 
-                    // 度数に基づく色分け
                     circle.setAttribute('fill', getDegreeColor(interval));
 
                     const text = document.createElementNS(svgNS, 'text');
-                    text.setAttribute('x', cx); text.setAttribute('y', cy + 4.5); // 中央より少し下に調整
+                    text.setAttribute('x', cx); text.setAttribute('y', cy + 4.5);
                     text.setAttribute('fill', '#ffffff');
-                    const defaultFontSize = 11;
-                    text.setAttribute('font-size', defaultFontSize);
+                    text.setAttribute('font-size', '11');
                     text.setAttribute('font-weight', 'bold');
                     text.setAttribute('text-anchor', 'middle');
-                    text.style.pointerEvents = 'none'; // テキスト自体はホバー判定しないように
+                    text.style.pointerEvents = 'none';
                     
                     if (state.keyViewer.showDegree) {
                         text.textContent = getDegreeString(interval);
@@ -1493,7 +1578,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // ヘッダータイトルの更新
         const rootNoteName = noteArray[rootNoteIndex].replace(/\(.+\)/, '');
-        keyViewerTitle.textContent = `${rootNoteName} ${scaleDef.name}`;
+        let titleText = `${rootNoteName} ${scaleDef.name}`;
+        if (activeCaged) {
+            titleText += ` — ${CAGED_FORMS[activeCaged].name}`;
+        }
+        keyViewerTitle.textContent = titleText;
 
         keyViewerFretboardContainer.innerHTML = '';
         keyViewerFretboardContainer.appendChild(svg);
@@ -1746,7 +1835,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         s.fretViewStart = s.targetFret > 12 ? 12 : 0;
         if (s.targetFret === 0) {
-            fretboardQuestionTextEl.innerHTML = 'この<strong class="text-blue-600">開放弦</strong>の音名は何でしょう？';
+            fretboardQuestionTextEl.innerHTML = 'この<strong class="text-white">開放弦</strong>の音名は何でしょう？';
             fretboardPositionHintEl.textContent = `${s.targetString + 1}弦 開放`;
         } else {
             fretboardQuestionTextEl.textContent = 'この場所の音名は何でしょう？';
@@ -1803,11 +1892,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.solfege.score++;
                 solfegeScoreEl.textContent = state.solfege.score;
             }
-            showMessage('正解！', 'text-green-600');
+            showMessage('正解！', 'text-green-400');
             clickedButton.classList.add('correct');
         } else {
             const correctNoteName = state.noteNameSystem === 'english' ? NOTES_ENHARMONIC[targetNoteIndex] : NOTES_SOLFEGE_ENHARMONIC[targetNoteIndex];
-            showMessage(`不正解... 正解は ${correctNoteName}`, 'text-red-600');
+            showMessage(`不正解... 正解は ${correctNoteName}`, 'text-red-400');
             clickedButton.classList.add('incorrect');
             const correctButton = answerButtonsContainer.querySelector(`[data-note-index='${targetNoteIndex}']`);
             if (correctButton) correctButton.classList.add('correct');
@@ -2159,6 +2248,26 @@ document.addEventListener('DOMContentLoaded', () => {
             drawKeyViewerFretboard();
         });
 
+        // CAGED フォームセレクター
+        if (keyViewerCagedSelector) {
+            keyViewerCagedSelector.addEventListener('click', (e) => {
+                const target = e.target.closest('.option-btn');
+                if (!target) return;
+                const cagedValue = target.dataset.caged;
+                
+                keyViewerCagedSelector.querySelectorAll('.active-mode').forEach(b => b.classList.remove('active-mode'));
+                target.classList.add('active-mode');
+                
+                if (cagedValue === 'all') {
+                    state.keyViewer.cagedForm = null;
+                } else {
+                    state.keyViewer.cagedForm = cagedValue;
+                }
+                
+                drawKeyViewerFretboard();
+            });
+        }
+
         keyViewerFretboardContainer.addEventListener('click', (e) => {
             const marker = e.target.closest('.scale-marker');
             if (marker && marker.dataset.midiNote) {
@@ -2505,21 +2614,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const header = document.createElement('div');
         header.className = 'midi-track-header';
         header.innerHTML = `
-            <span class="font-bold text-gray-800 text-sm">${track.track_id}</span>
+            <span class="font-bold text-[#e0e0e0] text-sm">${track.track_id}</span>
             <span class="midi-role-badge ${roleCls}">${roleJa}</span>
-            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Pan: ${track.pan_position}</span>
-            <span class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Capo: ${track.capo}</span>
-            ${track.estimated_form ? `<span class="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">${track.estimated_form}</span>` : ''}
-            <span class="ml-auto text-xs text-gray-400">${(track.events || []).length} ノート</span>
-            <svg class="midi-chevron w-4 h-4 text-gray-400 ml-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>`;
+            <span class="text-xs text-[#777777] bg-[#1e1e1e] px-2 py-0.5 rounded-full border border-[#2a2a2a]">Pan: ${track.pan_position}</span>
+            <span class="text-xs text-[#777777] bg-[#1e1e1e] px-2 py-0.5 rounded-full border border-[#2a2a2a]">Capo: ${track.capo}</span>
+            ${track.estimated_form ? `<span class="text-xs text-[#888888] bg-[#1a1a1a] px-2 py-0.5 rounded-full border border-[#2a2a2a]">${track.estimated_form}</span>` : ''}
+            <span class="ml-auto text-xs text-[#555555]">${(track.events || []).length} ノート</span>
+            <svg class="midi-chevron w-4 h-4 text-[#555555] ml-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>`;
 
         // ボディ
         const body = document.createElement('div');
-        body.className = 'p-4';
+        body.className = 'p-4 bg-[#101010]';
 
         const events = track.events || [];
         if (events.length === 0) {
-            body.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">ノートイベントなし</p>';
+            body.innerHTML = '<p class="text-[#555555] text-sm text-center py-4">ノートイベントなし</p>';
         } else {
             const PREVIEW = 30;
             const showAll = events.length <= PREVIEW;
@@ -2551,7 +2660,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const degCls = _degreeClass(ev.degree);
             return `<tr>
                 <td class="text-gray-400 text-xs">${ev.time_sec.toFixed(2)}s</td>
-                <td class="font-semibold text-gray-800">${ev.actual_note}</td>
+                <td class="font-semibold text-[#e0e0e0]">${ev.actual_note}</td>
                 <td class="midi-tab-cell">${ev.tab.string}弦 / ${ev.tab.fret}f</td>
                 <td><span class="midi-degree ${degCls}">${ev.degree}</span></td>
             </tr>`;
