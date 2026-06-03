@@ -111,6 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const scaleFinderUndoBtn = document.getElementById('scale-finder-undo-btn');
     const scaleFinderResultsList = document.getElementById('scale-finder-results-list');
     const scaleFinderEmptyMessage = document.getElementById('scale-finder-empty-message');
+    const scaleFinderKeyResult = document.getElementById('scale-finder-key-result');
+    const scaleFinderKeyCards = document.getElementById('scale-finder-key-cards');
 
     // Chord Builder Elements
     const tabChordBuilder = document.getElementById('tab-chord-builder');
@@ -593,6 +595,26 @@ document.addEventListener('DOMContentLoaded', () => {
         return groupedResults;
     }
 
+    function detectKey() {
+        const validPositions = state.scaleFinder.selectedPositions.filter(p => !p.isUncertain);
+        if (validPositions.length === 0) return [];
+        const selectedPitches = Array.from(new Set(validPositions.map(p => p.noteIndex)));
+        const candidates = [];
+        for (let rootIndex = 0; rootIndex < 12; rootIndex++) {
+            for (const scaleType of ['major', 'minor']) {
+                const scalePitchClasses = SCALES[scaleType].intervals.map(i => (rootIndex + i) % 12);
+                const matching = selectedPitches.filter(pc => scalePitchClasses.includes(pc)).length;
+                if (matching === 0) continue;
+                const coverage = matching / selectedPitches.length;
+                const completeness = matching / scalePitchClasses.length;
+                candidates.push({ rootIndex, scaleType, matching, total: selectedPitches.length, coverage, completeness, score: coverage * completeness });
+            }
+        }
+        return candidates
+            .sort((a, b) => b.score !== a.score ? b.score - a.score : b.coverage - a.coverage)
+            .slice(0, 3);
+    }
+
     function updateScaleFinder() {
         const selected = state.scaleFinder.selectedPositions;
         const noteArray = state.noteNameSystem === 'english' ? NOTES_ENHARMONIC : NOTES_SOLFEGE_ENHARMONIC;
@@ -602,6 +624,7 @@ document.addEventListener('DOMContentLoaded', () => {
             scaleFinderResultsList.innerHTML = '';
             scaleFinderEmptyMessage.classList.remove('hidden');
             scaleFinderResultsList.classList.add('hidden');
+            scaleFinderKeyResult.classList.add('hidden');
             return;
         }
 
@@ -615,6 +638,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join(' → ');
         
         scaleFinderSelectedNotesEl.textContent = sequenceStr;
+
+        // キー判定レンダリング
+        const keyResults = detectKey();
+        if (keyResults.length > 0) {
+            const keyNoteArray = state.noteNameSystem === 'english' ? NOTES_ENHARMONIC : NOTES_SOLFEGE_ENHARMONIC;
+            scaleFinderKeyCards.innerHTML = '';
+            keyResults.forEach((k, idx) => {
+                const rootName = keyNoteArray[k.rootIndex].replace(/\(.+\)/, '');
+                const scaleName = SCALES[k.scaleType].name;
+                const coveragePct = Math.round(k.coverage * 100);
+                let badgeClass, badgeText;
+                if (k.coverage >= 1.0)       { badgeClass = 'bg-green-900 text-green-400 border border-green-800';   badgeText = '完全一致'; }
+                else if (k.coverage >= 0.8)  { badgeClass = 'bg-blue-900 text-blue-400 border border-blue-800';      badgeText = '高確信'; }
+                else if (k.coverage >= 0.6)  { badgeClass = 'bg-yellow-900 text-yellow-400 border border-yellow-800'; badgeText = '中確信'; }
+                else                         { badgeClass = 'bg-[#2a2a2a] text-[#666666] border border-[#333333]';   badgeText = '参考'; }
+                const isTop = idx === 0;
+                const card = document.createElement('div');
+                card.className = `flex flex-col items-center p-4 ${isTop ? 'bg-[#1e1e1e] border-[#3a3a3a]' : 'bg-[#181818] border-[#222222]'} rounded-lg border cursor-pointer hover:border-[#555555] transition-all min-w-[150px] flex-1 max-w-[200px]`;
+                card.innerHTML = `
+                    ${isTop ? '<div class="text-[10px] text-[#888888] mb-1 tracking-widest uppercase">最有力候補</div>' : ''}
+                    <div class="text-2xl font-bold text-white leading-tight">${rootName}</div>
+                    <div class="text-sm text-[#888888] mb-2">${scaleName}</div>
+                    <div class="w-full bg-[#2a2a2a] rounded-full h-1 mb-2">
+                        <div class="h-1 rounded-full ${isTop ? 'bg-white' : 'bg-[#555555]'}" style="width:${coveragePct}%"></div>
+                    </div>
+                    <div class="text-xs text-[#777777] mb-2">${k.matching}/${k.total}音一致 (${coveragePct}%)</div>
+                    <span class="text-[11px] px-2 py-0.5 rounded-full ${badgeClass}">${badgeText}</span>
+                `;
+                card.addEventListener('click', () => {
+                    state.keyViewer.rootNoteIndex = k.rootIndex;
+                    state.keyViewer.scaleType = k.scaleType;
+                    document.getElementById('key-viewer-root-selector').querySelectorAll('.active-mode').forEach(b => b.classList.remove('active-mode'));
+                    document.getElementById('key-viewer-root-selector').querySelector(`[data-root-index="${k.rootIndex}"]`).classList.add('active-mode');
+                    document.getElementById('key-viewer-scale-selector').querySelectorAll('.active-mode').forEach(b => b.classList.remove('active-mode'));
+                    document.getElementById('key-viewer-scale-selector').querySelector(`[data-scale="${k.scaleType}"]`).classList.add('active-mode');
+                    tabKeyViewer.click();
+                });
+                scaleFinderKeyCards.appendChild(card);
+            });
+            scaleFinderKeyResult.classList.remove('hidden');
+        } else {
+            scaleFinderKeyResult.classList.add('hidden');
+        }
 
         const results = findMatchingScales();
         scaleFinderResultsList.innerHTML = '';
